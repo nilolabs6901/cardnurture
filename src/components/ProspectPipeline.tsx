@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Search, Target, Loader2 } from 'lucide-react';
 import ProspectCard from './ProspectCard';
 
@@ -18,6 +18,11 @@ export default function ProspectPipeline({
   onResearch,
 }: ProspectPipelineProps) {
   const [prospects, setProspects] = useState(initialProspects);
+
+  // Sync internal state when parent passes new prospects
+  useEffect(() => {
+    setProspects(initialProspects);
+  }, [initialProspects]);
 
   const handleStatusChange = useCallback(
     async (prospectId: string, newStatus: string) => {
