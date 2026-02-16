@@ -37,7 +37,9 @@ export async function POST(request: NextRequest) {
     // Research supply chain prospects
     const results = await researchSupplyChain(
       contact.company || '',
-      contact.industryVertical || ''
+      contact.industryVertical || '',
+      contact.name || '',
+      contact.rawOcrText || ''
     );
 
     // Save each prospect result as a Prospect record
