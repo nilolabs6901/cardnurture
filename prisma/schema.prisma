@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String?
+  contacts     Contact[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Contact {
+  id             String          @id @default(cuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id])
+  name           String
+  email          String?
+  phone          String?
+  company        String?
+  address        String?
+  rawOcrText     String?         @db.Text
+  needsReview    Boolean         @default(false)
+  batchId        String?
+
+  // Personality research fields
+  personalityType      String    @default("Balanced")
+  personalitySummary   String?   @db.Text
+  researchSnippets     String?   @db.Text
+  personalityConfidence String   @default("none")
+  researchedAt         DateTime?
+
+  // Supply chain research fields
+  companyDescription       String?   @db.Text
+  industryVertical         String?
+  supplyChainResearchedAt  DateTime?
+
+  // Nurture settings
+  nurtureEnabled  Boolean  @default(true)
+  nurtureInterval Int      @default(90)
+  nurtureTopic    String   @default("Auto")
+
+  emailDrafts     EmailDraft[]
+  prospects       Prospect[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model EmailDraft {
+  id          String    @id @default(cuid())
+  contactId   String
+  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  type        String
+  subject     String
+  body        String    @db.Text
+  status      String    @default("draft")
+  topic       String?
+  windowStart DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Prospect {
+  id               String   @id @default(cuid())
+  contactId        String
+  sourceContact    Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  companyName      String
+  relationship     String
+  relationshipDesc String?  @db.Text
+  location         String?
+  industry         String?
+  combiliftFit     String?  @db.Text
+  website          String?
+  confidence       String   @default("medium")
+  status           String   @default("new")
+  convertedToContactId String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}

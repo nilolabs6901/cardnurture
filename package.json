@@ -1,0 +1,53 @@
+{
+  "name": "cardnurture",
+  "version": "1.0.0",
+  "description": "Business card scanner & nurture CRM for Combilift sales",
+  "scripts": {
+    "dev": "next dev",
+    "build": "prisma generate && prisma migrate deploy && next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "postinstall": "prisma generate"
+  },
+  "prisma": {
+    "seed": "npx tsx prisma/seed.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "@tailwindcss/postcss": "^4.1.18",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "autoprefixer": "^10.4.24",
+    "bcryptjs": "^3.0.3",
+    "cheerio": "^1.2.0",
+    "date-fns": "^4.1.0",
+    "heic2any": "^0.0.4",
+    "lucide-react": "^0.564.0",
+    "next": "^14.2.35",
+    "next-auth": "^4.24.13",
+    "nodemailer": "^7.0.13",
+    "postcss": "^8.5.6",
+    "prisma": "^5.22.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "sharp": "^0.34.5",
+    "tailwindcss": "^4.1.18",
+    "tesseract.js": "^7.0.0",
+    "typescript": "^5.9.3",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^25.2.3",
+    "@types/nodemailer": "^7.0.9",
+    "eslint": "^9.39.2",
+    "eslint-config-next": "^16.1.6",
+    "tsx": "^4.21.0",
+    "vitest": "^4.0.18"
+  }
+}
