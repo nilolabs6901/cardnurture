@@ -9,14 +9,12 @@ import { Suspense } from 'react';
 function LoginForm() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Show error if redirected back from failed auth
   useEffect(() => {
     if (searchParams.get('error')) {
-      setError('Invalid email or password.');
+      setError('Something went wrong. Please try again.');
     }
   }, [searchParams]);
 
@@ -28,18 +26,16 @@ function LoginForm() {
     try {
       const result = await signIn('credentials', {
         email,
-        password,
         redirect: false,
       });
 
       if (result?.error) {
-        setError('Invalid email or password.');
+        setError('Something went wrong. Please try again.');
         setIsLoading(false);
         return;
       }
 
       if (result?.ok) {
-        // Small delay to let the cookie be fully set before navigation
         setTimeout(() => {
           window.location.replace('/upload');
         }, 100);
@@ -92,26 +88,6 @@ function LoginForm() {
               />
             </div>
 
-            {/* Password */}
-            <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor="password"
-                className="text-sm text-[var(--text-secondary)] font-medium"
-              >
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-                className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl px-4 py-3 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none transition-all duration-200 w-full focus:border-[var(--accent-orange)] focus:ring-1 focus:ring-[var(--accent-orange)]"
-                placeholder="Enter your password"
-              />
-            </div>
-
             {/* Error */}
             {error && (
               <p className="text-sm text-[var(--status-error)] text-center">
@@ -131,7 +107,7 @@ function LoginForm() {
                   Signing in...
                 </>
               ) : (
-                'Sign In'
+                'Continue'
               )}
             </button>
           </form>

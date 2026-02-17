@@ -1,6 +1,5 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { compare } from 'bcryptjs';
 import { prisma } from './prisma';
 
 export const authOptions: NextAuthOptions = {
@@ -9,16 +8,27 @@ export const authOptions: NextAuthOptions = {
       name: 'credentials',
       credentials: {
         email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+        if (!credentials?.email) return null;
+
+        const email = credentials.email.toLowerCase().trim();
+
+        // Find existing user or create new one
+        let user = await prisma.user.findUnique({
+          where: { email },
         });
-        if (!user) return null;
-        const isValid = await compare(credentials.password, user.passwordHash);
-        if (!isValid) return null;
+
+        if (!user) {
+          user = await prisma.user.create({
+            data: {
+              email,
+              passwordHash: '',
+              name: email.split('@')[0],
+            },
+          });
+        }
+
         return { id: user.id, email: user.email, name: user.name };
       },
     }),
