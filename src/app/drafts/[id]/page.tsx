@@ -146,8 +146,8 @@ export default function DraftEditorPage() {
   // Open in mail client
   const handleOpenOutlook = useCallback(() => {
     const to = draft?.contact?.email || '';
-    const outlookUrl = `https://outlook.live.com/mail/0/deeplink/compose?to=${encodeURIComponent(to)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(outlookUrl, '_blank');
+    const mailtoUrl = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailtoUrl;
     setShowMailMenu(false);
   }, [draft, subject, body]);
 

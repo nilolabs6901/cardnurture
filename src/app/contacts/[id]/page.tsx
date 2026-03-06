@@ -362,7 +362,26 @@ export default function ContactDetailPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 animate-fade-in-up">
+    <div className="max-w-3xl mx-auto px-4 py-6 pb-36 md:pb-6 animate-fade-in-up">
+      {/* Mobile sticky Save button — positioned above BottomNav including safe area */}
+      <div
+        className="md:hidden fixed left-0 right-0 z-[45] bg-[var(--bg-surface)]/95 backdrop-blur-xl border-t border-[var(--border-subtle)] px-4 py-3"
+        style={{ bottom: 'calc(4rem + env(safe-area-inset-bottom, 0px))' }}
+      >
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          className="flex items-center justify-center gap-2 w-full px-6 py-3 bg-[var(--accent-orange)] hover:bg-[var(--accent-orange-hover)] text-white text-sm font-medium rounded-xl transition-all duration-150 active:scale-[0.98] min-h-[44px] disabled:opacity-50 shadow-lg"
+        >
+          {isSaving ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : (
+            <Save size={16} />
+          )}
+          {isSaving ? 'Saving...' : 'Save Changes'}
+        </button>
+      </div>
+
       {/* Toast container */}
       <div className="fixed top-4 right-4 z-[100] space-y-2">
         {toasts.map((toast) => (
@@ -527,7 +546,7 @@ export default function ContactDetailPage() {
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="flex items-center justify-center gap-2 w-full md:w-auto px-6 py-3 bg-[var(--accent-orange)] hover:bg-[var(--accent-orange-hover)] text-white text-sm font-medium rounded-xl transition-all duration-150 active:scale-[0.98] min-h-[44px] disabled:opacity-50"
+              className="hidden md:flex items-center justify-center gap-2 w-auto px-6 py-3 bg-[var(--accent-orange)] hover:bg-[var(--accent-orange-hover)] text-white text-sm font-medium rounded-xl transition-all duration-150 active:scale-[0.98] min-h-[44px] disabled:opacity-50"
             >
               {isSaving ? (
                 <Loader2 size={16} className="animate-spin" />
