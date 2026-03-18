@@ -42,6 +42,9 @@ model Contact {
   industryVertical         String?
   supplyChainResearchedAt  DateTime?
 
+  // Sales pipeline
+  salesStage      String   @default("Lead")
+
   // Nurture settings
   nurtureEnabled  Boolean  @default(true)
   nurtureInterval Int      @default(90)

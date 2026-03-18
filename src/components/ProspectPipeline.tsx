@@ -1,8 +1,43 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Search, Target, Loader2 } from 'lucide-react';
 import ProspectCard from './ProspectCard';
+
+function ResearchingIndicator() {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  let message = 'Researching supply chain...';
+  if (elapsed > 5) message = 'Analyzing company relationships...';
+  if (elapsed > 12) message = 'Identifying Combilift opportunities...';
+  if (elapsed > 20) message = 'Almost done — building prospect profiles...';
+
+  return (
+    <div className="p-4 rounded-xl bg-[var(--accent-orange-muted)] border border-[var(--accent-orange)]/20 space-y-3">
+      <div className="flex items-center gap-2 text-[var(--accent-orange)] text-sm font-medium">
+        <Loader2 size={16} className="animate-spin" />
+        {message}
+      </div>
+      {/* Progress bar */}
+      <div className="w-full h-1.5 bg-[var(--bg-elevated)] rounded-full overflow-hidden">
+        <div
+          className="h-full rounded-full bg-[var(--accent-orange)] transition-all duration-1000 ease-out progress-shimmer"
+          style={{ width: `${Math.min(elapsed * 4, 90)}%` }}
+        />
+      </div>
+      {elapsed > 8 && (
+        <p className="text-xs text-[var(--text-tertiary)]">
+          This typically takes 15-30 seconds
+        </p>
+      )}
+    </div>
+  );
+}
 
 interface ProspectPipelineProps {
   prospects: any[];
@@ -118,12 +153,7 @@ export default function ProspectPipeline({
       </div>
 
       {/* Researching State */}
-      {isResearching && (
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-[var(--accent-orange-muted)] text-[var(--accent-orange)] text-sm">
-          <Loader2 size={16} className="animate-spin" />
-          Researching supply chain...
-        </div>
-      )}
+      {isResearching && <ResearchingIndicator />}
 
       {/* Empty State */}
       {!isResearching && prospects.length === 0 && (

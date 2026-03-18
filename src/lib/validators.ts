@@ -20,6 +20,8 @@ export const contactCreateSchema = z.object({
   batchId: z.string().optional().or(z.literal('')),
 });
 
+export const SALES_STAGES = ['Lead', 'Contacted', 'Demo Scheduled', 'Proposal Sent', 'Closed Won', 'Closed Lost'] as const;
+
 export const contactUpdateSchema = z.object({
   name: z.string().min(1, 'Name is required').optional(),
   email: z.string().email('Invalid email address').optional().or(z.literal('')),
@@ -38,6 +40,7 @@ export const contactUpdateSchema = z.object({
   rawOcrText: z.string().optional().or(z.literal('')),
   needsReview: z.boolean().optional(),
   batchId: z.string().optional().or(z.literal('')),
+  salesStage: z.enum(SALES_STAGES).optional(),
   nurtureEnabled: z.boolean().optional(),
   nurtureInterval: z.number().int().min(1).max(365).optional(),
   nurtureTopic: z.string().optional(),

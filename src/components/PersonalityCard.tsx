@@ -82,6 +82,32 @@ export default function PersonalityCard({
             </p>
           )}
 
+          {/* Prominent retry when research failed or never ran */}
+          {!summary && confidence === 'none' && onReresearch && (
+            <div className="bg-[var(--bg-elevated)] rounded-xl p-4 text-center space-y-2">
+              <p className="text-sm text-[var(--text-secondary)]">
+                Personality research hasn&apos;t been completed yet.
+              </p>
+              <button
+                onClick={onReresearch}
+                disabled={isReresearching}
+                className="inline-flex items-center gap-2 px-4 py-2.5 bg-[var(--accent-orange)] hover:bg-[var(--accent-orange-hover)] text-white text-sm font-medium rounded-xl transition-all duration-150 active:scale-[0.98] min-h-[44px] disabled:opacity-50"
+              >
+                {isReresearching ? (
+                  <>
+                    <RefreshCw size={14} className="animate-spin" />
+                    Researching...
+                  </>
+                ) : (
+                  <>
+                    <Brain size={14} />
+                    Run Personality Research
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
           {/* Override Dropdown */}
           {onOverride && (
             <div className="pt-2 border-t border-[var(--border-subtle)]">
