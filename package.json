@@ -4,7 +4,7 @@
   "description": "Business card scanner & nurture CRM for Combilift sales",
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && next build && cp -r .next/static .next/standalone/.next/static && cp -r public .next/standalone/public",
     "start": "prisma migrate deploy && HOSTNAME=0.0.0.0 node .next/standalone/server.js",
     "lint": "next lint",
     "test": "vitest run",
