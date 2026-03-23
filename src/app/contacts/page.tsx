@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, Download, List, Users, Zap, Target } from 'lucide-react';
+import { Search, Download, List, Users } from 'lucide-react';
 import PersonalityBadge from '@/components/PersonalityBadge';
+import StatTileRow from '@/components/StatTileRow';
 
 /* ─── Types ─── */
 
@@ -26,34 +27,6 @@ interface ContactRecord {
 }
 
 type FilterTab = 'all' | 'needs-review' | 'active-nurture';
-
-/* ─── Stat Card ─── */
-
-interface StatCardProps {
-  label: string;
-  value: number;
-  icon: React.ReactNode;
-  delay: number;
-}
-
-function StatCard({ label, value, icon, delay }: StatCardProps) {
-  return (
-    <div
-      className="bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-subtle)] p-4 flex-1 min-w-0 animate-fade-in-up"
-      style={{ animationDelay: `${delay}ms`, animationFillMode: 'both' }}
-    >
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-[var(--text-tertiary)]">{icon}</span>
-      </div>
-      <p className="font-[var(--font-space-grotesk)] text-2xl font-bold text-[var(--text-primary)]">
-        {value}
-      </p>
-      <p className="text-[var(--text-tertiary)] text-xs uppercase tracking-wider mt-0.5">
-        {label}
-      </p>
-    </div>
-  );
-}
 
 /* ─── Nurture Status Dot ─── */
 
@@ -199,12 +172,12 @@ function ContactsPage() {
         </div>
       </div>
 
-      {/* Stat cards */}
-      <div className="flex gap-3 mb-5 overflow-x-auto">
-        <StatCard label="Total Contacts" value={totalContacts} icon={<Users size={16} />} delay={0} />
-        <StatCard label="Active Nurture" value={activeNurtureCount} icon={<Zap size={16} />} delay={50} />
-        <StatCard label="Pipeline Prospects" value={totalProspects} icon={<Target size={16} />} delay={100} />
-      </div>
+      {/* Stat tiles */}
+      <StatTileRow
+        totalContacts={totalContacts}
+        activeNurture={activeNurtureCount}
+        pipelineProspects={totalProspects}
+      />
 
       {/* Search */}
       <div className="relative mb-4">
