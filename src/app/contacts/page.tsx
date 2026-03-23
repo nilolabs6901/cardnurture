@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, Download, List, Users } from 'lucide-react';
 import PersonalityBadge from '@/components/PersonalityBadge';
 import StatTileRow from '@/components/StatTileRow';
+import BulkActionToolbar from '@/components/BulkActionToolbar';
 
 /* ─── Types ─── */
 
@@ -173,6 +174,51 @@ function ContactsPage() {
 
   function handleExport() {
     window.open('/api/contacts/export?format=csv', '_blank');
+  }
+
+  async function handleBulkDelete() {
+    const ids = Array.from(selectedIds);
+    try {
+      const res = await fetch('/api/contacts/bulk', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+      if (res.ok) {
+        // Optimistic update: remove deleted contacts from state
+        setContacts((prev) => prev.filter((c) => !selectedIds.has(c.id)));
+        setSelectedIds(new Set());
+      }
+    } catch {
+      // silent fail
+    }
+  }
+
+  async function handleBulkToggleNurture(enabled: boolean) {
+    const ids = Array.from(selectedIds);
+    try {
+      const res = await fetch('/api/contacts/bulk', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, nurtureEnabled: enabled }),
+      });
+      if (res.ok) {
+        // Optimistic update: toggle nurtureEnabled in state
+        setContacts((prev) =>
+          prev.map((c) =>
+            selectedIds.has(c.id) ? { ...c, nurtureEnabled: enabled } : c
+          )
+        );
+        setSelectedIds(new Set());
+      }
+    } catch {
+      // silent fail
+    }
+  }
+
+  function handleBulkExport() {
+    const ids = Array.from(selectedIds).join(',');
+    window.open(`/api/contacts/export?format=csv&ids=${ids}`, '_blank');
   }
 
   return (
@@ -413,6 +459,15 @@ function ContactsPage() {
           </table>
         </div>
       )}
+
+      {/* Bulk action toolbar */}
+      <BulkActionToolbar
+        selectedCount={selectedIds.size}
+        onDelete={handleBulkDelete}
+        onToggleNurture={handleBulkToggleNurture}
+        onExport={handleBulkExport}
+        onClear={() => setSelectedIds(new Set())}
+      />
     </div>
   );
 }
