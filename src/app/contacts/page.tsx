@@ -85,6 +85,7 @@ function ContactsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterTab>(initialFilter === 'needs-review' ? 'needs-review' : 'all');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchContacts();
@@ -102,6 +103,33 @@ function ContactsPage() {
       // silent fail -- contacts will be empty
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  // Clear selection when filter or search changes
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [activeFilter, searchQuery]);
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    const allFilteredIds = filteredContacts.map((c) => c.id);
+    const allSelected = allFilteredIds.length > 0 && allFilteredIds.every((id) => selectedIds.has(id));
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(allFilteredIds));
     }
   }
 
@@ -262,10 +290,17 @@ function ContactsPage() {
             <button
               key={contact.id}
               onClick={() => router.push(`/contacts/${contact.id}`)}
-              className={`w-full text-left bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-subtle)] p-4 transition-all duration-150 active:scale-[0.98] hover:bg-[var(--bg-surface-hover)] animate-fade-in-up stagger-${Math.min(index + 1, 8)}`}
+              className={`relative w-full text-left bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-subtle)] p-4 transition-all duration-150 active:scale-[0.98] hover:bg-[var(--bg-surface-hover)] animate-fade-in-up stagger-${Math.min(index + 1, 8)}`}
               style={{ animationFillMode: 'both' }}
             >
-              <div className="flex items-center justify-between gap-3">
+              <input
+                type="checkbox"
+                checked={selectedIds.has(contact.id)}
+                onChange={() => toggleSelect(contact.id)}
+                onClick={(e) => e.stopPropagation()}
+                className="absolute top-3 right-3 accent-[var(--accent-orange)] w-4 h-4 cursor-pointer"
+              />
+              <div className="flex items-center justify-between gap-3 pr-6">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 mb-0.5">
                     <p className="font-semibold text-[var(--text-primary)] truncate">
@@ -292,6 +327,14 @@ function ContactsPage() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-[var(--border-subtle)]">
+                <th className="py-3 px-3 w-10">
+                  <input
+                    type="checkbox"
+                    checked={filteredContacts.length > 0 && filteredContacts.every((c) => selectedIds.has(c.id))}
+                    onChange={toggleSelectAll}
+                    className="accent-[var(--accent-orange)] w-4 h-4 cursor-pointer"
+                  />
+                </th>
                 <th className="text-left text-xs text-[var(--text-tertiary)] uppercase tracking-wider font-medium py-3 px-3">
                   Name
                 </th>
@@ -322,6 +365,15 @@ function ContactsPage() {
                   onClick={() => router.push(`/contacts/${contact.id}`)}
                   className="border-b border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--bg-surface-hover)] transition-colors"
                 >
+                  <td className="py-3 px-3 w-10">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(contact.id)}
+                      onChange={() => toggleSelect(contact.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="accent-[var(--accent-orange)] w-4 h-4 cursor-pointer"
+                    />
+                  </td>
                   <td className="py-3 px-3">
                     <span className="font-semibold text-sm text-[var(--text-primary)]">
                       {contact.name}
