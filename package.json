@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
-    "start": "prisma migrate deploy && node .next/standalone/server.js",
+    "start": "prisma migrate deploy && next start",
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -18,6 +18,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@prisma/client": "^5.22.0",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/react": "^19.2.14",
@@ -35,6 +38,7 @@
     "prisma": "^5.22.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "recharts": "^3.8.0",
     "sharp": "^0.34.5",
     "tailwindcss": "^4.1.18",
     "tesseract.js": "^7.0.0",

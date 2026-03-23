@@ -81,6 +81,7 @@ function ContactsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialFilter = searchParams.get('filter') as FilterTab | null;
+  const personalityFilter = searchParams.get('personality');
 
   const [contacts, setContacts] = useState<ContactRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -151,6 +152,11 @@ function ContactsPage() {
       result = result.filter((c) => c.nurtureEnabled);
     }
 
+    // Filter by personality query param
+    if (personalityFilter) {
+      result = result.filter((c) => c.personalityType === personalityFilter);
+    }
+
     // Filter by search
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -163,7 +169,7 @@ function ContactsPage() {
     }
 
     return result;
-  }, [contacts, activeFilter, searchQuery]);
+  }, [contacts, activeFilter, searchQuery, personalityFilter]);
 
   // Tabs config
   const filterTabs: { key: FilterTab; label: string; count?: number }[] = [
@@ -267,6 +273,19 @@ function ContactsPage() {
           className="w-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none transition-all duration-200 focus:border-[var(--accent-orange)] focus:ring-1 focus:ring-[var(--accent-orange)]"
         />
       </div>
+
+      {/* Personality filter banner */}
+      {personalityFilter && (
+        <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-[var(--accent-orange-muted)] rounded-xl text-sm">
+          <span className="text-[var(--text-primary)]">Filtered by: {personalityFilter}</span>
+          <button
+            onClick={() => router.replace('/contacts')}
+            className="text-[var(--accent-orange)] hover:underline text-xs"
+          >
+            Clear
+          </button>
+        </div>
+      )}
 
       {/* Filter tabs */}
       <div className="flex gap-2 mb-5 overflow-x-auto no-scrollbar">
