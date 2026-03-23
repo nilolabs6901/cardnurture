@@ -24,8 +24,18 @@ export async function GET(request: NextRequest) {
 
     const userId = (session.user as any).id as string;
 
+    // Support filtering by specific IDs
+    const idsParam = request.nextUrl.searchParams.get('ids');
+    const where: Record<string, unknown> = { userId };
+    if (idsParam) {
+      const idFilter = idsParam.split(',').filter(Boolean);
+      if (idFilter.length > 0) {
+        where.id = { in: idFilter };
+      }
+    }
+
     const contacts = await prisma.contact.findMany({
-      where: { userId },
+      where,
       include: {
         emailDrafts: {
           orderBy: { createdAt: 'desc' },

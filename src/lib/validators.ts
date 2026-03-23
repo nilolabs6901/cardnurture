@@ -67,8 +67,21 @@ export const prospectUpdateSchema = z.object({
   status: z.enum(['new', 'contacted', 'converted', 'dismissed']),
 });
 
+export const contactBulkDeleteSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1, 'At least one contact ID required'),
+});
+
+export const contactBulkUpdateSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1, 'At least one contact ID required'),
+  nurtureEnabled: z.boolean().optional(),
+  nurtureInterval: z.number().int().min(1).max(365).optional(),
+  nurtureTopic: z.string().optional(),
+});
+
 export type ContactCreateInput = z.infer<typeof contactCreateSchema>;
 export type ContactUpdateInput = z.infer<typeof contactUpdateSchema>;
 export type DraftUpdateInput = z.infer<typeof draftUpdateSchema>;
 export type NurtureSettingsInput = z.infer<typeof nurtureSettingsSchema>;
 export type ProspectUpdateInput = z.infer<typeof prospectUpdateSchema>;
+export type ContactBulkDeleteInput = z.infer<typeof contactBulkDeleteSchema>;
+export type ContactBulkUpdateInput = z.infer<typeof contactBulkUpdateSchema>;
