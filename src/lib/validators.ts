@@ -78,6 +78,26 @@ export const contactBulkUpdateSchema = z.object({
   nurtureTopic: z.string().optional(),
 });
 
+export const prospectCreateSchema = z.object({
+  contactId: z.string().min(1, 'Contact ID required'),
+  companyName: z.string().min(1, 'Company name required'),
+  relationship: z.string().min(1, 'Relationship required'),
+  relationshipDesc: z.string().optional().or(z.literal('')),
+  location: z.string().optional().or(z.literal('')),
+  industry: z.string().optional().or(z.literal('')),
+  website: z.string().optional().or(z.literal('')),
+  confidence: z.enum(['high', 'medium', 'low']).optional(),
+});
+
+export const prospectBulkUpdateSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1),
+  status: z.enum(['new', 'contacted', 'converted', 'dismissed']).optional(),
+});
+
+export const prospectBulkDeleteSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1),
+});
+
 export type ContactCreateInput = z.infer<typeof contactCreateSchema>;
 export type ContactUpdateInput = z.infer<typeof contactUpdateSchema>;
 export type DraftUpdateInput = z.infer<typeof draftUpdateSchema>;
@@ -85,3 +105,5 @@ export type NurtureSettingsInput = z.infer<typeof nurtureSettingsSchema>;
 export type ProspectUpdateInput = z.infer<typeof prospectUpdateSchema>;
 export type ContactBulkDeleteInput = z.infer<typeof contactBulkDeleteSchema>;
 export type ContactBulkUpdateInput = z.infer<typeof contactBulkUpdateSchema>;
+export type ProspectCreateInput = z.infer<typeof prospectCreateSchema>;
+export type ProspectBulkUpdateInput = z.infer<typeof prospectBulkUpdateSchema>;
