@@ -19,9 +19,12 @@ import {
   Package,
   Send,
   X,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { COMBILIFT_MODEL_OPTIONS, DRAFT_TEMPLATE_TYPES } from '@/lib/email-templates';
+import { SALES_STAGES } from '@/lib/validators';
 import PersonalityBadge from '@/components/PersonalityBadge';
 import PersonalityCard from '@/components/PersonalityCard';
 import ProspectPipeline from '@/components/ProspectPipeline';
@@ -126,6 +129,65 @@ function AccordionSection({
   );
 }
 
+const STAGE_COLORS: Record<string, string> = {
+  Lead: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+  Contacted: 'bg-cyan-500/10 text-cyan-500 border-cyan-500/20',
+  'Demo Scheduled': 'bg-purple-500/10 text-purple-500 border-purple-500/20',
+  'Proposal Sent': 'bg-amber-500/10 text-amber-500 border-amber-500/20',
+  'Closed Won': 'bg-green-500/10 text-green-500 border-green-500/20',
+  'Closed Lost': 'bg-red-500/10 text-red-400 border-red-500/20',
+};
+
+function SalesStageBadge({
+  stage,
+  onStageChange,
+}: {
+  stage: string;
+  onStageChange: (stage: string) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const colors = STAGE_COLORS[stage] || STAGE_COLORS.Lead;
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all duration-150 active:scale-[0.98] ${colors}`}
+      >
+        {stage}
+        <ChevronDown size={12} />
+      </button>
+
+      {isOpen && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+          <div className="absolute top-full left-0 mt-1 bg-[var(--bg-surface)] rounded-xl border border-[var(--border-subtle)] shadow-xl overflow-hidden z-50 animate-fade-in-up min-w-[160px]">
+            {SALES_STAGES.map((s) => (
+              <button
+                key={s}
+                onClick={() => {
+                  onStageChange(s);
+                  setIsOpen(false);
+                }}
+                className={`flex items-center gap-2 w-full px-3 py-2.5 text-sm text-left hover:bg-[var(--bg-surface-hover)] transition-colors min-h-[40px] ${
+                  s === stage ? 'font-medium text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'
+                }`}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    STAGE_COLORS[s]?.split(' ')[0] || 'bg-gray-400'
+                  }`}
+                />
+                {s}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function ContactDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -153,6 +215,10 @@ export default function ContactDetailPage() {
   const [selectedTemplateType, setSelectedTemplateType] = useState<string>('intro-meeting');
   const [selectedModel, setSelectedModel] = useState<string>(COMBILIFT_MODEL_OPTIONS[0]?.value || 'C-Series');
   const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
+
+  // Delete state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Toasts
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -301,6 +367,43 @@ export default function ContactDetailPage() {
     showToast('Nurture settings updated');
   };
 
+  // Update sales stage
+  const handleSalesStageChange = async (newStage: string) => {
+    try {
+      const res = await fetch(`/api/contacts/${contactId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ salesStage: newStage }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setContact((prev: any) => ({ ...prev, ...updated }));
+        showToast(`Stage updated to ${newStage}`);
+      }
+    } catch {
+      showToast('Failed to update stage', 'error');
+    }
+  };
+
+  // Delete contact
+  const handleDeleteContact = async () => {
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/contacts/${contactId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to delete');
+      }
+      router.push('/contacts');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to delete contact', 'error');
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
   // Generate new draft
   const handleGenerateDraft = async () => {
     setIsGeneratingDraft(true);
@@ -398,14 +501,95 @@ export default function ContactDetailPage() {
         ))}
       </div>
 
-      {/* Back button */}
-      <button
-        onClick={() => router.back()}
-        className="flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 active:scale-[0.98] min-h-[44px] mb-4"
-      >
-        <ArrowLeft size={18} />
-        Back
-      </button>
+      {/* Back button + Delete */}
+      <div className="flex items-center justify-between mb-4">
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all duration-150 active:scale-[0.98] min-h-[44px]"
+        >
+          <ArrowLeft size={18} />
+          Back
+        </button>
+        <button
+          onClick={() => setShowDeleteConfirm(true)}
+          className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-[var(--status-error)] hover:bg-red-500/10 transition-all duration-150 active:scale-[0.98] min-h-[44px]"
+        >
+          <Trash2 size={16} />
+          Delete
+        </button>
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => !isDeleting && setShowDeleteConfirm(false)}
+          />
+          <div className="relative bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-subtle)] shadow-2xl w-full max-w-sm mx-4 animate-fade-in-up overflow-hidden">
+            <div className="p-6 text-center">
+              <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle size={24} className="text-[var(--status-error)]" />
+              </div>
+              <h3 className="text-base font-semibold text-[var(--text-primary)] mb-2">
+                Delete Contact
+              </h3>
+              <p className="text-sm text-[var(--text-secondary)]">
+                Are you sure you want to delete <strong>{contact.name}</strong>? This will permanently remove the contact, all email drafts, and prospects. This cannot be undone.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 p-5 border-t border-[var(--border-subtle)]">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-3 text-sm font-medium text-[var(--text-secondary)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-surface-hover)] rounded-xl transition-all duration-150 active:scale-[0.98] min-h-[44px] disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteContact}
+                disabled={isDeleting}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-white bg-[var(--status-error)] hover:bg-red-600 rounded-xl transition-all duration-150 active:scale-[0.98] min-h-[44px] disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={16} />
+                    Delete
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Follow-up Reminder Banner */}
+      {(() => {
+        const daysSinceUpdate = Math.floor(
+          (Date.now() - new Date(contact.updatedAt).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        if (daysSinceUpdate < 14 || contact.salesStage === 'Closed Won' || contact.salesStage === 'Closed Lost') return null;
+
+        return (
+          <div className={`rounded-xl p-3 mb-4 flex items-center gap-2 text-sm ${
+            daysSinceUpdate > 30
+              ? 'bg-[var(--status-warning)]/10 border border-[var(--status-warning)]/20 text-[var(--status-warning)]'
+              : 'bg-blue-500/10 border border-blue-500/20 text-blue-500'
+          }`}>
+            <Bell size={16} />
+            <span>
+              {daysSinceUpdate > 30
+                ? `You haven't updated ${contact.name.split(' ')[0]} in ${daysSinceUpdate} days — time for a follow-up?`
+                : `${daysSinceUpdate} days since last activity`}
+            </span>
+          </div>
+        );
+      })()}
 
       {/* Contact Header */}
       <div className="flex items-start gap-3 mb-6">
@@ -420,6 +604,10 @@ export default function ContactDetailPage() {
           )}
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             <PersonalityBadge type={contact.personalityType} />
+            <SalesStageBadge
+              stage={contact.salesStage || 'Lead'}
+              onStageChange={handleSalesStageChange}
+            />
             <span className="text-xs text-[var(--text-tertiary)]">
               Added{' '}
               {format(new Date(contact.createdAt), 'MMM d, yyyy')}

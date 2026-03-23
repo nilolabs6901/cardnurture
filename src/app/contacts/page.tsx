@@ -19,15 +19,19 @@ interface ContactRecord {
   personalityType: string;
   personalitySummary: string | null;
   nurtureEnabled: boolean;
+  nurtureInterval: number;
+  nurtureTopic: string;
+  salesStage: string;
   needsReview: boolean;
   createdAt: string;
+  updatedAt: string;
   _count: {
     emailDrafts: number;
     prospects: number;
   };
 }
 
-type FilterTab = 'all' | 'needs-review' | 'active-nurture';
+type FilterTab = 'all' | 'needs-review' | 'active-nurture' | 'pipeline';
 
 /* ─── Nurture Status Dot ─── */
 
@@ -38,6 +42,70 @@ function NurtureStatusDot({ enabled }: { enabled: boolean }) {
         enabled ? 'bg-[var(--status-success)]' : 'bg-[var(--text-tertiary)]'
       }`}
     />
+  );
+}
+
+/* ─── Nurture Info Pill ─── */
+
+function NurtureInfoPill({ enabled, interval, topic }: { enabled: boolean; interval: number; topic: string }) {
+  if (!enabled) {
+    return (
+      <span className="text-xs text-[var(--text-tertiary)]">Off</span>
+    );
+  }
+
+  const topicShort = topic === 'Auto' ? 'Auto' : topic.split(' ')[0];
+
+  return (
+    <span className="inline-flex items-center gap-1 text-xs">
+      <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--status-success)]" />
+      <span className="text-[var(--text-secondary)]">
+        {interval}d
+      </span>
+      <span className="text-[var(--text-tertiary)]">&middot;</span>
+      <span className="text-[var(--text-tertiary)] truncate max-w-[80px]">
+        {topicShort}
+      </span>
+    </span>
+  );
+}
+
+/* ─── Sales Stage Pill ─── */
+
+const STAGE_COLORS: Record<string, string> = {
+  Lead: 'bg-blue-500/10 text-blue-500',
+  Contacted: 'bg-cyan-500/10 text-cyan-500',
+  'Demo Scheduled': 'bg-purple-500/10 text-purple-500',
+  'Proposal Sent': 'bg-amber-500/10 text-amber-500',
+  'Closed Won': 'bg-green-500/10 text-green-500',
+  'Closed Lost': 'bg-red-500/10 text-red-400',
+};
+
+function SalesStagePill({ stage }: { stage: string }) {
+  const colors = STAGE_COLORS[stage] || 'bg-gray-500/10 text-gray-500';
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${colors}`}>
+      {stage}
+    </span>
+  );
+}
+
+/* ─── Days Since Indicator ─── */
+
+function DaysSinceCreated({ dateStr }: { dateStr: string }) {
+  const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
+
+  if (days <= 7) return null;
+
+  const isStale = days > 30;
+
+  return (
+    <span
+      className={`text-xs ${isStale ? 'text-[var(--status-warning)]' : 'text-[var(--text-tertiary)]'}`}
+      title={`Added ${days} days ago`}
+    >
+      {days}d ago
+    </span>
   );
 }
 
@@ -150,6 +218,10 @@ function ContactsPage() {
       result = result.filter((c) => c.needsReview);
     } else if (activeFilter === 'active-nurture') {
       result = result.filter((c) => c.nurtureEnabled);
+    } else if (activeFilter === 'pipeline') {
+      result = result.filter(
+        (c) => c.salesStage && c.salesStage !== 'Lead' && c.salesStage !== 'Closed Won' && c.salesStage !== 'Closed Lost'
+      );
     }
 
     // Filter by personality query param
@@ -171,9 +243,14 @@ function ContactsPage() {
     return result;
   }, [contacts, activeFilter, searchQuery, personalityFilter]);
 
+  const pipelineCount = contacts.filter((c) =>
+    c.salesStage && c.salesStage !== 'Lead' && c.salesStage !== 'Closed Won' && c.salesStage !== 'Closed Lost'
+  ).length;
+
   // Tabs config
   const filterTabs: { key: FilterTab; label: string; count?: number }[] = [
     { key: 'all', label: 'All' },
+    { key: 'pipeline', label: 'In Pipeline', count: pipelineCount },
     { key: 'needs-review', label: 'Needs Review', count: needsReviewCount },
     { key: 'active-nurture', label: 'Active Nurture' },
   ];
@@ -191,7 +268,6 @@ function ContactsPage() {
         body: JSON.stringify({ ids }),
       });
       if (res.ok) {
-        // Optimistic update: remove deleted contacts from state
         setContacts((prev) => prev.filter((c) => !selectedIds.has(c.id)));
         setSelectedIds(new Set());
       }
@@ -209,7 +285,6 @@ function ContactsPage() {
         body: JSON.stringify({ ids, nurtureEnabled: enabled }),
       });
       if (res.ok) {
-        // Optimistic update: toggle nurtureEnabled in state
         setContacts((prev) =>
           prev.map((c) =>
             selectedIds.has(c.id) ? { ...c, nurtureEnabled: enabled } : c
@@ -378,6 +453,11 @@ function ContactsPage() {
                       {contact.company}
                     </p>
                   )}
+                  <div className="flex items-center gap-2 mt-1">
+                    <SalesStagePill stage={contact.salesStage || 'Lead'} />
+                    <NurtureInfoPill enabled={contact.nurtureEnabled} interval={contact.nurtureInterval} topic={contact.nurtureTopic} />
+                    <DaysSinceCreated dateStr={contact.createdAt} />
+                  </div>
                 </div>
                 <PersonalityBadge type={contact.personalityType} size="sm" />
               </div>
@@ -410,6 +490,9 @@ function ContactsPage() {
                   Email
                 </th>
                 <th className="text-left text-xs text-[var(--text-tertiary)] uppercase tracking-wider font-medium py-3 px-3">
+                  Stage
+                </th>
+                <th className="text-left text-xs text-[var(--text-tertiary)] uppercase tracking-wider font-medium py-3 px-3">
                   Personality
                 </th>
                 <th className="text-left text-xs text-[var(--text-tertiary)] uppercase tracking-wider font-medium py-3 px-3">
@@ -430,12 +513,11 @@ function ContactsPage() {
                   onClick={() => router.push(`/contacts/${contact.id}`)}
                   className="border-b border-[var(--border-subtle)] cursor-pointer hover:bg-[var(--bg-surface-hover)] transition-colors"
                 >
-                  <td className="py-3 px-3 w-10">
+                  <td className="py-3 px-3 w-10" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={selectedIds.has(contact.id)}
                       onChange={() => toggleSelect(contact.id)}
-                      onClick={(e) => e.stopPropagation()}
                       className="accent-[var(--accent-orange)] w-4 h-4 cursor-pointer"
                     />
                   </td>
@@ -455,10 +537,13 @@ function ContactsPage() {
                     </span>
                   </td>
                   <td className="py-3 px-3">
+                    <SalesStagePill stage={contact.salesStage || 'Lead'} />
+                  </td>
+                  <td className="py-3 px-3">
                     <PersonalityBadge type={contact.personalityType} size="sm" />
                   </td>
                   <td className="py-3 px-3">
-                    <NurtureStatusDot enabled={contact.nurtureEnabled} />
+                    <NurtureInfoPill enabled={contact.nurtureEnabled} interval={contact.nurtureInterval} topic={contact.nurtureTopic} />
                   </td>
                   <td className="py-3 px-3">
                     <span className="text-sm text-[var(--text-tertiary)]">

@@ -112,6 +112,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (data.researchSnippets !== undefined) updateData.researchSnippets = data.researchSnippets || null;
     if (data.personalityConfidence !== undefined) updateData.personalityConfidence = data.personalityConfidence;
     if (data.industryVertical !== undefined) updateData.industryVertical = data.industryVertical || null;
+    if (data.salesStage !== undefined) updateData.salesStage = data.salesStage;
 
     // Nurture settings
     if (data.nurtureEnabled !== undefined) updateData.nurtureEnabled = data.nurtureEnabled;
@@ -131,6 +132,52 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     );
     return NextResponse.json(
       { error: 'Failed to update contact.' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest, context: RouteContext) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const userId = (session.user as any).id as string;
+    const { id } = await context.params;
+
+    const existing = await prisma.contact.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: 'Contact not found.' },
+        { status: 404 }
+      );
+    }
+
+    if (existing.userId !== userId) {
+      return NextResponse.json(
+        { error: 'Contact not found.' },
+        { status: 404 }
+      );
+    }
+
+    // Cascade deletes are handled by Prisma schema (onDelete: Cascade)
+    await prisma.contact.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error(
+      'Contact DELETE error:',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
+    return NextResponse.json(
+      { error: 'Failed to delete contact.' },
       { status: 500 }
     );
   }

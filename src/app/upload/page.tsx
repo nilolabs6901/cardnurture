@@ -262,6 +262,23 @@ function UploadPage() {
   const [error, setError] = useState('');
   const processingRef = useRef(false);
 
+  // Warn before navigating away during batch processing
+  useEffect(() => {
+    const hasUnfinishedBatch =
+      batchMode && batchItems.some((i) => i.status === 'processing' || i.status === 'queued');
+    const hasUnreviewedResults =
+      batchMode && batchItems.some((i) => i.status === 'extracted') && !batchItems.every((i) => i.status === 'extracted' || i.status === 'failed');
+
+    if (!hasUnfinishedBatch && !hasUnreviewedResults) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [batchMode, batchItems]);
+
   async function processOcr(file: File): Promise<ParseResult | null> {
     const formData = new FormData();
     formData.append('file', file);
