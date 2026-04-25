@@ -16,6 +16,7 @@ export async function GET(request: NextRequest) {
     const contactId = searchParams.get('contactId');
     const stage = searchParams.get('stage');
     const company = searchParams.get('company');
+    const personality = searchParams.get('personality');
 
     if (contactId) {
       // Verify the contact belongs to this user
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
         where: { contactId },
         include: {
           sourceContact: {
-            select: { name: true, company: true },
+            select: { name: true, company: true, personalityType: true },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -44,8 +45,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Build filters for all-prospects query
+    const sourceContactFilter: Record<string, unknown> = { userId };
+    if (personality) {
+      sourceContactFilter.personalityType = personality;
+    }
+
     const where: Record<string, unknown> = {
-      sourceContact: { userId },
+      sourceContact: sourceContactFilter,
     };
 
     if (stage) {
@@ -61,7 +67,7 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         sourceContact: {
-          select: { name: true, company: true },
+          select: { name: true, company: true, personalityType: true },
         },
       },
       orderBy: { createdAt: 'desc' },
