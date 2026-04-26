@@ -47,19 +47,28 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 - **Supply Chain Prospecting:** Identifies Florida-based companies in the contact's supply chain as potential Combilift prospects
 - **Contact Reference Sheet:** Printable contact list with CSV export
 
-## Triggering Nurture Cron
+## Triggering Cron Endpoints
 
-Manually generate nurture email drafts for eligible contacts:
+Two cron endpoints drive the nurture workflow:
+
+1. `/api/cron/generate-nurture` — generates nurture email drafts for eligible contacts (run daily).
+2. `/api/cron/send-scheduled-drafts` — sends drafts whose `scheduledSendAt` has elapsed (run every 15 minutes).
+
+By default, generated nurture drafts are scheduled to auto-send 24 hours after creation, giving you a window to review or edit. Set `nurtureAutoSend = false` on a contact to keep its drafts manual-only. Sending requires SMTP env vars (see `.env.example`).
 
 ```bash
 curl http://localhost:3000/api/cron/generate-nurture
+curl http://localhost:3000/api/cron/send-scheduled-drafts
 ```
 
-For production, set up a cron job or Vercel Cron to call this endpoint. Optionally set `CRON_SECRET` in `.env` and pass it as a query parameter:
+For production, set up a scheduler (Railway cron, GitHub Actions, etc.) to call these endpoints. Set `CRON_SECRET` in your environment and pass it as a query param or `Authorization: Bearer` header:
 
 ```bash
 curl "http://localhost:3000/api/cron/generate-nurture?secret=your-secret"
+curl "http://localhost:3000/api/cron/send-scheduled-drafts?secret=your-secret"
 ```
+
+A simple health check is also available at `/api/health` — useful for Railway health probes.
 
 ## Optional Configuration
 

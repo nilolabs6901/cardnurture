@@ -4,7 +4,13 @@ export type ConfidenceLevel = 'high' | 'medium' | 'low' | 'none';
 
 export type DraftType = 'follow-up' | 'nurture';
 
-export type DraftStatus = 'draft' | 'sent' | 'archived';
+export type DraftStatus = 'draft' | 'scheduled' | 'sent' | 'send_failed' | 'archived';
+
+export interface SendScheduledResult {
+  sent: number;
+  failed: number;
+  skipped: number;
+}
 
 export type ProspectStatus = 'new' | 'contacted' | 'converted' | 'dismissed';
 

@@ -27,6 +27,12 @@ import type { NurtureCronResult, NurtureTopic } from '@/types';
 /** Default interval between nurture windows in days. */
 const DEFAULT_INTERVAL_DAYS = 90;
 
+/**
+ * Hours between draft creation and auto-send. Gives the user a buffer to
+ * review, edit, or cancel a scheduled draft before it goes out.
+ */
+const AUTO_SEND_REVIEW_HOURS = 24;
+
 /** Topics available for auto-selection (excludes "Auto"). */
 const SELECTABLE_TOPICS = NURTURE_TOPICS.filter(
   (t): t is Exclude<NurtureTopic, 'Auto'> => t !== 'Auto',
@@ -145,15 +151,21 @@ export async function generateNurtureDrafts(): Promise<NurtureCronResult> {
       // -----------------------------------------------------------------
       // 4. Persist the draft
       // -----------------------------------------------------------------
+      const autoSend = contact.nurtureAutoSend !== false && Boolean(contact.email);
+      const scheduledSendAt = autoSend
+        ? new Date(now.getTime() + AUTO_SEND_REVIEW_HOURS * 60 * 60 * 1000)
+        : null;
+
       await prisma.emailDraft.create({
         data: {
           contactId: contact.id,
           type: 'nurture',
           subject: draft.subject,
           body: draft.body,
-          status: 'draft',
+          status: autoSend ? 'scheduled' : 'draft',
           topic,
           windowStart: nextWindow,
+          scheduledSendAt,
         },
       });
 

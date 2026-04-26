@@ -49,6 +49,7 @@ model Contact {
   nurtureEnabled  Boolean  @default(true)
   nurtureInterval Int      @default(90)
   nurtureTopic    String   @default("Auto")
+  nurtureAutoSend Boolean  @default(true)
 
   emailDrafts     EmailDraft[]
   prospects       Prospect[]
@@ -57,17 +58,19 @@ model Contact {
 }
 
 model EmailDraft {
-  id          String    @id @default(cuid())
-  contactId   String
-  contact     Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  type        String
-  subject     String
-  body        String    @db.Text
-  status      String    @default("draft")
-  topic       String?
-  windowStart DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id              String    @id @default(cuid())
+  contactId       String
+  contact         Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  type            String
+  subject         String
+  body            String    @db.Text
+  status          String    @default("draft")
+  topic           String?
+  windowStart     DateTime?
+  scheduledSendAt DateTime?
+  sentAt          DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model Prospect {
