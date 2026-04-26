@@ -70,6 +70,8 @@ curl "http://localhost:3000/api/cron/send-scheduled-drafts?secret=your-secret"
 
 A simple health check is also available at `/api/health` — useful for Railway health probes.
 
+For a complete Railway production setup (env vars, SMTP provider, cron services), see [docs/RAILWAY.md](docs/RAILWAY.md).
+
 ## Optional Configuration
 
 ### LLM (Enhanced Parsing & Personality Analysis)
