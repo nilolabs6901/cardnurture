@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, Download, List, Users } from 'lucide-react';
+import { Search, Download, List, Users, AlertCircle } from 'lucide-react';
 import PersonalityBadge from '@/components/PersonalityBadge';
 import StatTileRow from '@/components/StatTileRow';
 import BulkActionToolbar from '@/components/BulkActionToolbar';
@@ -135,6 +135,30 @@ function EmptyState() {
   );
 }
 
+/* ─── Error State ─── */
+
+function ErrorState({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="animate-fade-in-up flex flex-col items-center justify-center py-16 px-4 text-center">
+      <div className="w-16 h-16 rounded-full bg-[var(--status-warning-muted,var(--bg-elevated))] flex items-center justify-center mb-4">
+        <AlertCircle size={28} className="text-[var(--status-warning)]" />
+      </div>
+      <h3 className="font-[var(--font-space-grotesk)] text-lg font-bold text-[var(--text-primary)] mb-2">
+        Couldn&apos;t load contacts
+      </h3>
+      <p className="text-sm text-[var(--text-secondary)] mb-6 max-w-xs">
+        Something went wrong reaching the server. Your contacts are safe — please try again in a moment.
+      </p>
+      <button
+        onClick={onRetry}
+        className="bg-[var(--accent-orange)] hover:bg-[var(--accent-orange-hover)] text-white font-semibold rounded-xl px-6 py-3 min-h-[44px] transition-all duration-150 active:scale-[0.98]"
+      >
+        Retry
+      </button>
+    </div>
+  );
+}
+
 /* ─── Contacts Page ─── */
 
 export default function ContactsPageWrapper() {
@@ -153,6 +177,7 @@ function ContactsPage() {
 
   const [contacts, setContacts] = useState<ContactRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterTab>(initialFilter === 'needs-review' ? 'needs-review' : 'all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -163,14 +188,17 @@ function ContactsPage() {
 
   async function fetchContacts() {
     setIsLoading(true);
+    setLoadError(false);
     try {
       const res = await fetch('/api/contacts');
-      if (res.ok) {
-        const data = await res.json();
-        setContacts(data);
+      if (!res.ok) {
+        setLoadError(true);
+        return;
       }
+      const data = await res.json();
+      setContacts(data);
     } catch {
-      // silent fail -- contacts will be empty
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
@@ -413,18 +441,21 @@ function ContactsPage() {
         </div>
       )}
 
+      {/* Error state */}
+      {!isLoading && loadError && <ErrorState onRetry={fetchContacts} />}
+
       {/* Empty state */}
-      {!isLoading && contacts.length === 0 && <EmptyState />}
+      {!isLoading && !loadError && contacts.length === 0 && <EmptyState />}
 
       {/* No search results */}
-      {!isLoading && contacts.length > 0 && filteredContacts.length === 0 && (
+      {!isLoading && !loadError && contacts.length > 0 && filteredContacts.length === 0 && (
         <div className="text-center py-12">
           <p className="text-sm text-[var(--text-secondary)]">No contacts match your search.</p>
         </div>
       )}
 
       {/* Mobile: Contact cards */}
-      {!isLoading && filteredContacts.length > 0 && (
+      {!isLoading && !loadError && filteredContacts.length > 0 && (
         <div className="md:hidden space-y-2">
           {filteredContacts.map((contact, index) => (
             <button
@@ -467,7 +498,7 @@ function ContactsPage() {
       )}
 
       {/* Desktop: Table */}
-      {!isLoading && filteredContacts.length > 0 && (
+      {!isLoading && !loadError && filteredContacts.length > 0 && (
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
             <thead>
