@@ -88,7 +88,7 @@ export async function POST(
     const draft = await prisma.emailDraft.create({
       data: {
         contactId: contact.id,
-        type: 'follow-up',
+        type: templateType,
         subject: draftContent.subject,
         body: draftContent.body,
         status: 'draft',

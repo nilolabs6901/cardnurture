@@ -71,7 +71,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     // Send the email
-    await sendEmail(draft.contact.email, draft.subject, draft.body);
+    const sent = await sendEmail(draft.contact.email, draft.subject, draft.body);
+
+    if (!sent) {
+      return NextResponse.json(
+        { error: 'Failed to send email. Please check your SMTP configuration and try again.' },
+        { status: 502 }
+      );
+    }
 
     // Update draft status to sent
     await prisma.emailDraft.update({
