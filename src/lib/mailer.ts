@@ -1,5 +1,13 @@
 import nodemailer from 'nodemailer';
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 export function isSmtpConfigured(): boolean {
   return Boolean(
     process.env.SMTP_HOST &&
@@ -42,7 +50,7 @@ export async function sendEmail(
       to,
       subject,
       text: body,
-      html: body.replace(/\n/g, '<br>'),
+      html: escapeHtml(body).replace(/\n/g, '<br>'),
     });
 
     return true;
