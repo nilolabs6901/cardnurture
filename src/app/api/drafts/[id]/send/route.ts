@@ -70,6 +70,18 @@ export async function POST(request: NextRequest, context: RouteContext) {
       );
     }
 
+    // Block sends that still contain unfilled template placeholders like
+    // [Where we met] or [Your Name] — these must never reach a prospect.
+    if (/\[[^\]]+\]/.test(draft.body) || /\[[^\]]+\]/.test(draft.subject)) {
+      return NextResponse.json(
+        {
+          error:
+            'Draft still has unfilled placeholders. Replace the bracketed text before sending.',
+        },
+        { status: 400 }
+      );
+    }
+
     // Send the email
     const sent = await sendEmail(draft.contact.email, draft.subject, draft.body);
 

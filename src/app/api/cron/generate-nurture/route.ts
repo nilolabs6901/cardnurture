@@ -1,30 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
 import { generateNurtureDrafts } from '@/lib/nurture';
 
 export async function GET(request: NextRequest) {
   try {
-    // Validate CRON_SECRET if it is set
+    // Require CRON_SECRET to be configured. Fail closed: a missing secret
+    // refuses the request rather than leaving this endpoint public.
     const cronSecret = process.env.CRON_SECRET;
 
-    if (cronSecret) {
-      const { searchParams } = new URL(request.url);
-      const querySecret = searchParams.get('secret');
-      const authHeader = request.headers.get('authorization');
-      const bearerToken = authHeader?.startsWith('Bearer ')
-        ? authHeader.slice(7)
-        : null;
+    if (!cronSecret) {
+      return NextResponse.json(
+        { error: 'Cron is not configured.' },
+        { status: 503 }
+      );
+    }
 
-      const providedSecret = querySecret || bearerToken;
+    const { searchParams } = new URL(request.url);
+    const querySecret = searchParams.get('secret');
+    const authHeader = request.headers.get('authorization');
+    const bearerToken = authHeader?.startsWith('Bearer ')
+      ? authHeader.slice(7)
+      : null;
 
-      if (providedSecret !== cronSecret) {
-        return NextResponse.json(
-          { error: 'Invalid or missing cron secret.' },
-          { status: 401 }
-        );
-      }
+    const providedSecret = querySecret || bearerToken;
+
+    if (providedSecret !== cronSecret) {
+      return NextResponse.json(
+        { error: 'Invalid or missing cron secret.' },
+        { status: 401 }
+      );
     }
 
     // Generate nurture drafts for all eligible contacts
