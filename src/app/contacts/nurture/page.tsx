@@ -127,7 +127,7 @@ export default function NurturePage() {
     }
   }
 
-  const contacts = data?.contacts ?? [];
+  const contacts = useMemo(() => data?.contacts ?? [], [data]);
   const summary = data?.summary ?? {
     totalContacts: 0,
     activeNurture: 0,

@@ -924,7 +924,7 @@ export default function ContactDetailPage() {
                 No drafts yet
               </p>
               <p className="text-xs text-[var(--text-tertiary)]">
-                Click "New Draft" above to create one
+                Click &quot;New Draft&quot; above to create one
               </p>
             </div>
           )}
