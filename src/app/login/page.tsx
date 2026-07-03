@@ -9,7 +9,6 @@ import { Suspense } from 'react';
 function LoginForm() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
@@ -27,7 +26,6 @@ function LoginForm() {
     try {
       const result = await signIn('credentials', {
         email,
-        password,
         redirect: false,
       });
 
@@ -87,26 +85,6 @@ function LoginForm() {
                 autoComplete="email"
                 className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl px-4 py-3 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none transition-all duration-200 w-full focus:border-[var(--accent-orange)] focus:ring-1 focus:ring-[var(--accent-orange)]"
                 placeholder="you@company.com"
-              />
-            </div>
-
-            {/* Password */}
-            <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor="password"
-                className="text-sm text-[var(--text-secondary)] font-medium"
-              >
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-                className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl px-4 py-3 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none transition-all duration-200 w-full focus:border-[var(--accent-orange)] focus:ring-1 focus:ring-[var(--accent-orange)]"
-                placeholder="••••••••"
               />
             </div>
 
