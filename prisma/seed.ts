@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding database...');
 
-  const hashedPassword = hashSync('cardnurture123', 10);
+  const hashedPassword = hashSync('miVg7QW7y4kj71IU', 10);
   const user = await prisma.user.upsert({
     where: { email: 'admin@cardnurture.app' },
     update: {},
