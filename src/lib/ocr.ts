@@ -60,7 +60,7 @@ async function preprocessImage(imageBuffer: Buffer): Promise<Buffer> {
  */
 async function extractWithVisionAPI(imageBuffer: Buffer): Promise<string | null> {
   const apiKey = getEnvVar('ANTHROPIC_API_KEY');
-  console.log('[OCR] ANTHROPIC_API_KEY check:', apiKey ? `SET (${apiKey.substring(0, 15)}...)` : 'NOT SET');
+  console.log('[OCR] ANTHROPIC_API_KEY check:', apiKey ? 'SET ([configured])' : 'NOT SET');
   if (!apiKey) return null;
 
   try {
