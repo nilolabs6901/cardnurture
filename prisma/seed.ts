@@ -1,18 +1,19 @@
 import { PrismaClient } from '@prisma/client';
-import { hashSync } from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('Seeding database...');
 
-  const hashedPassword = hashSync('miVg7QW7y4kj71IU', 10);
+  // Sign-in is email-only (see src/lib/auth.ts), so no password is stored.
+  // passwordHash is non-nullable in the schema, so seed it empty to match
+  // the users that authorize() creates on first sign-in.
   const user = await prisma.user.upsert({
     where: { email: 'admin@cardnurture.app' },
     update: {},
     create: {
       email: 'admin@cardnurture.app',
-      passwordHash: hashedPassword,
+      passwordHash: '',
       name: 'Admin',
     },
   });
