@@ -77,15 +77,34 @@ this endpoint on a schedule.
 
 ## Optional Configuration
 
-### LLM (Enhanced Parsing & Personality Analysis)
+### Claude API (OCR Accuracy, Personality Analysis, Prospect Research)
 
-Set these in `.env` to enable LLM-powered features:
+**This is the single highest-impact setting.** OCR tries Claude vision first and
+only falls back to Tesseract, which is markedly weaker on business cards. Set:
+
+```
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+The same key powers personality research (`src/lib/research.ts`) and supply-chain
+prospect research (`src/lib/supply-chain.ts`).
+
+Note that a failed vision call is **not** surfaced to the user — it is logged and
+the request silently falls back to Tesseract. If scans are coming back poor,
+check the server logs for `[OCR]` lines before assuming the key is set correctly.
+
+### OpenAI-Compatible Fallback
+
+Used only when `ANTHROPIC_API_KEY` is unset:
 
 ```
 LLM_API_KEY=your-api-key
-LLM_BASE_URL=https://api.openai.com/v1
+LLM_BASE_URL=https://api.openai.com
 LLM_MODEL=gpt-4o-mini
 ```
+
+`LLM_BASE_URL` takes **no** `/v1` suffix — the code appends
+`/v1/chat/completions` itself.
 
 ### SMTP (Real Email Sending)
 
