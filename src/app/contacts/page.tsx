@@ -391,14 +391,16 @@ function ContactsPage() {
       )}
 
       {/* Filter tabs */}
-      <div className="flex gap-2 mb-5 overflow-x-auto no-scrollbar">
+      {/* py-1.5 is load-bearing: overflow-x-auto also clips vertically, which
+          would cut off the chips' expanded 44px tap area. */}
+      <div className="flex gap-2 mb-4 py-1.5 overflow-x-auto no-scrollbar snap-strip -mx-4 px-4 md:mx-0 md:px-0">
         {filterTabs.map((tab) => {
           const isActive = activeFilter === tab.key;
           return (
             <button
               key={tab.key}
               onClick={() => setActiveFilter(tab.key)}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-150 active:scale-[0.98] min-h-[36px] ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-150 active:scale-[0.98] shrink-0 tap-44 ${
                 isActive
                   ? 'bg-[var(--accent-orange-muted)] text-[var(--accent-orange)] border border-[var(--accent-orange)]'
                   : 'bg-transparent text-[var(--text-secondary)] border border-transparent hover:bg-[var(--bg-surface-hover)]'
@@ -458,20 +460,19 @@ function ContactsPage() {
       {!isLoading && !loadError && filteredContacts.length > 0 && (
         <div className="md:hidden space-y-2">
           {filteredContacts.map((contact, index) => (
-            <button
+            // The checkbox is a sibling of the card button rather than a child:
+            // nesting an input inside a button is invalid, and as a sibling it
+            // can carry a full 44px tap area without enlarging the tick itself.
+            <div
               key={contact.id}
-              onClick={() => router.push(`/contacts/${contact.id}`)}
-              className={`relative w-full text-left bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-subtle)] p-4 transition-all duration-150 active:scale-[0.98] hover:bg-[var(--bg-surface-hover)] animate-fade-in-up stagger-${Math.min(index + 1, 8)}`}
+              className={`relative animate-fade-in-up stagger-${Math.min(index + 1, 8)}`}
               style={{ animationFillMode: 'both' }}
             >
-              <input
-                type="checkbox"
-                checked={selectedIds.has(contact.id)}
-                onChange={() => toggleSelect(contact.id)}
-                onClick={(e) => e.stopPropagation()}
-                className="absolute top-3 right-3 accent-[var(--accent-orange)] w-4 h-4 cursor-pointer"
-              />
-              <div className="flex items-center justify-between gap-3 pr-6">
+              <button
+                onClick={() => router.push(`/contacts/${contact.id}`)}
+                className="w-full text-left bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-subtle)] p-4 transition-all duration-150 active:scale-[0.98] hover:bg-[var(--bg-surface-hover)]"
+              >
+              <div className="flex items-center justify-between gap-3 pr-10">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 mb-0.5">
                     <p className="font-semibold text-[var(--text-primary)] truncate">
@@ -492,7 +493,20 @@ function ContactsPage() {
                 </div>
                 <PersonalityBadge type={contact.personalityType} size="sm" />
               </div>
-            </button>
+              </button>
+
+              <label
+                className="absolute top-1 right-1 min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
+                aria-label={`Select ${contact.name}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(contact.id)}
+                  onChange={() => toggleSelect(contact.id)}
+                  className="accent-[var(--accent-orange)] w-5 h-5 cursor-pointer"
+                />
+              </label>
+            </div>
           ))}
         </div>
       )}

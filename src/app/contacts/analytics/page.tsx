@@ -226,7 +226,7 @@ export default function AnalyticsPage() {
                   <button
                     key={opt.key}
                     onClick={() => setDateRange(opt.key)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all duration-150 ${
+                    className={`px-3 min-h-[44px] min-w-[44px] rounded-lg text-xs font-medium transition-all duration-150 ${
                       dateRange === opt.key
                         ? 'bg-[var(--accent-orange-muted)] text-[var(--accent-orange)]'
                         : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]'
