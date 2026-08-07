@@ -1,115 +1,11 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect, Suspense, ChangeEvent, DragEvent } from 'react';
+import { useState, useCallback, useRef, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Upload, Camera, X, Loader2, CheckCircle, AlertCircle, FileImage } from 'lucide-react';
+import { Camera, X, Loader2, CheckCircle, AlertCircle, FileImage } from 'lucide-react';
+import FileUpload from '@/components/FileUpload';
+import { downscaleImage } from '@/lib/image';
 import type { ParseResult, BatchOcrItem } from '@/types';
-
-/* ─── FileUpload Component ─── */
-
-interface FileUploadProps {
-  multiple?: boolean;
-  onFilesSelected: (files: File[]) => void;
-}
-
-function FileUpload({ multiple = true, onFilesSelected }: FileUploadProps) {
-  const [isDragActive, setIsDragActive] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  function handleFiles(fileList: FileList | null) {
-    if (!fileList || fileList.length === 0) return;
-    const accepted: File[] = [];
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
-
-    for (let i = 0; i < fileList.length; i++) {
-      const file = fileList[i];
-      // Accept by MIME type or by extension for HEIC (some browsers don't set MIME)
-      const ext = file.name.toLowerCase().split('.').pop();
-      if (allowedTypes.includes(file.type) || ext === 'heic' || ext === 'heif') {
-        accepted.push(file);
-      }
-    }
-
-    if (accepted.length > 0) {
-      onFilesSelected(accepted);
-    }
-  }
-
-  function handleDragEnter(e: DragEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragActive(true);
-  }
-
-  function handleDragLeave(e: DragEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragActive(false);
-  }
-
-  function handleDragOver(e: DragEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-  }
-
-  function handleDrop(e: DragEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragActive(false);
-    handleFiles(e.dataTransfer.files);
-  }
-
-  function handleInputChange(e: ChangeEvent<HTMLInputElement>) {
-    handleFiles(e.target.files);
-    // Reset input so same file can be re-selected
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  }
-
-  return (
-    <div
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
-      onClick={() => fileInputRef.current?.click()}
-      className={`relative flex flex-col items-center justify-center gap-4 w-full min-h-[280px] rounded-2xl border-2 border-dashed cursor-pointer transition-all duration-200 ${
-        isDragActive
-          ? 'border-[var(--accent-orange)] bg-[var(--accent-orange-muted)]'
-          : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-[var(--text-tertiary)] hover:bg-[var(--bg-surface-hover)]'
-      }`}
-    >
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp,image/heic,.heic,.heif"
-        multiple={multiple}
-        onChange={handleInputChange}
-        className="hidden"
-      />
-
-      <div
-        className={`w-16 h-16 rounded-full flex items-center justify-center transition-colors duration-200 ${
-          isDragActive
-            ? 'bg-[var(--accent-orange)] text-white'
-            : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)]'
-        }`}
-      >
-        <Upload size={28} />
-      </div>
-
-      <div className="text-center px-4">
-        <p className="text-[var(--text-primary)] font-medium text-sm">
-          {isDragActive ? 'Drop your card images here' : 'Tap to upload or drag & drop'}
-        </p>
-        <p className="text-[var(--text-tertiary)] text-xs mt-1">
-          JPEG, PNG, WebP, or HEIC -- up to 5MB each
-        </p>
-      </div>
-    </div>
-  );
-}
 
 /* ─── BatchProcessingQueue Component ─── */
 
@@ -463,15 +359,18 @@ function UploadPage() {
             fileInput.type = 'file';
             fileInput.accept = 'image/jpeg,image/png,image/webp,image/heic,.heic,.heif';
             fileInput.capture = 'environment';
-            fileInput.onchange = (e) => {
+            fileInput.onchange = async (e) => {
               const target = e.target as HTMLInputElement;
               if (target.files && target.files.length > 0) {
-                handleSingleFile(target.files[0]);
+                // The quick-scan path skips FileUpload, so shrink here too --
+                // a raw camera photo would otherwise blow the OCR size limit.
+                handleSingleFile(await downscaleImage(target.files[0]));
               }
             };
             fileInput.click();
           }}
-          className="fixed bottom-24 right-4 md:bottom-8 md:right-8 w-14 h-14 rounded-full bg-[var(--accent-orange)] hover:bg-[var(--accent-orange-hover)] text-white flex items-center justify-center shadow-lg transition-all duration-150 active:scale-[0.98] z-40"
+          aria-label="Scan another card"
+          className="fixed bottom-above-nav right-4 md:right-8 w-14 h-14 rounded-full bg-[var(--accent-orange)] hover:bg-[var(--accent-orange-hover)] text-white flex items-center justify-center shadow-lg transition-all duration-150 active:scale-[0.98] z-40"
           style={{ boxShadow: '0 4px 20px rgba(243, 111, 33, 0.4)' }}
         >
           <Camera size={24} />

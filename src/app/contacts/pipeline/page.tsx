@@ -22,6 +22,7 @@ import {
   useDroppable,
   useDraggable,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
@@ -97,11 +98,16 @@ function DraggableCard({
     >
       <div className="flex items-start gap-2">
         <button
-          className="mt-1 text-[var(--text-tertiary)] cursor-grab active:cursor-grabbing shrink-0"
+          aria-label={`Drag ${prospect.companyName} to another stage`}
+          // touch-action: none is required for a pointer-driven drag to survive
+          // on touch. Scoping it to the handle keeps the rest of the card (and
+          // the column) freely scrollable.
+          style={{ touchAction: 'none' }}
+          className="-m-2 p-2 min-h-[44px] min-w-[44px] flex items-start justify-center text-[var(--text-tertiary)] cursor-grab active:cursor-grabbing shrink-0"
           {...(isDragOverlay ? {} : listeners)}
           {...(isDragOverlay ? {} : attributes)}
         >
-          <GripVertical size={14} />
+          <GripVertical size={16} className="mt-1" />
         </button>
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-sm text-[var(--text-primary)] truncate">
@@ -396,7 +402,13 @@ export default function PipelinePage() {
   });
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    // Touch needs a press-and-hold to start a drag, otherwise the first
+    // vertical swipe over a card is stolen from the scroller. tolerance lets
+    // a finger wobble during the hold without cancelling.
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 180, tolerance: 8 },
+    })
   );
 
   // Fetch data
@@ -686,7 +698,10 @@ export default function PipelinePage() {
         <select
           value={filterContact}
           onChange={(e) => setFilterContact(e.target.value)}
-          className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl px-3 py-2 text-sm text-[var(--text-primary)] min-h-[44px]"
+          // A select sizes itself to its longest option, and as a flex item it
+          // will not shrink below that -- a long "Name - Company" pair was
+          // pushing the whole page into horizontal scroll on a phone.
+          className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl px-3 py-2 text-sm text-[var(--text-primary)] min-h-[44px] w-full min-w-0 sm:w-auto sm:max-w-[18rem]"
         >
           <option value="">All Contacts</option>
           {contacts.map((c) => (
@@ -701,7 +716,7 @@ export default function PipelinePage() {
           placeholder="Search company..."
           value={filterCompany}
           onChange={(e) => setFilterCompany(e.target.value)}
-          className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl px-3 py-2 text-sm text-[var(--text-primary)] min-h-[44px] w-48"
+          className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-xl px-3 py-2 text-sm text-[var(--text-primary)] min-h-[44px] w-full min-w-0 sm:w-48"
         />
 
         <div className="ml-auto flex items-center rounded-xl border border-[var(--border-subtle)] overflow-hidden">
@@ -737,7 +752,7 @@ export default function PipelinePage() {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex gap-4 overflow-x-auto pb-4">
+          <div className="flex gap-4 overflow-x-auto pb-4 snap-strip -mx-4 px-4 md:mx-0 md:px-0">
             {PIPELINE_STAGES.map((stage) => (
               <DroppableColumn
                 key={stage.id}

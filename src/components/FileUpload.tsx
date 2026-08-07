@@ -2,6 +2,7 @@
 
 import { useRef, useState, useCallback } from 'react';
 import { Camera, Upload, X } from 'lucide-react';
+import { downscaleImage } from '@/lib/image';
 
 interface FileUploadProps {
   onFilesSelected: (files: File[]) => void;
@@ -9,7 +10,13 @@ interface FileUploadProps {
 }
 
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+/**
+ * Ceiling on what we accept from the picker. This is deliberately well above
+ * the OCR route's own 5MB limit because downscaleImage() runs before upload --
+ * a 9MB camera photo comes out around 400KB. Anything past this is more likely
+ * a wrong-file mistake than a business card.
+ */
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
 
 function isHeicFile(file: File): boolean {
   return (
@@ -25,7 +32,7 @@ function validateFile(file: File): string | null {
     return `${file.name}: Unsupported file type. Use JPEG, PNG, WebP, or HEIC.`;
   }
   if (file.size > MAX_FILE_SIZE) {
-    return `${file.name}: File too large. Maximum size is 5MB.`;
+    return `${file.name}: File too large. Maximum size is 25MB.`;
   }
   return null;
 }
@@ -38,7 +45,7 @@ export default function FileUpload({
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
-  const [isConverting, setIsConverting] = useState(false);
+  const [prepStatus, setPrepStatus] = useState<string | null>(null);
 
   const processFiles = useCallback(
     async (fileList: FileList | File[]) => {
@@ -46,38 +53,48 @@ export default function FileUpload({
       const validationErrors: string[] = [];
       const validFiles: File[] = [];
 
-      for (const file of files) {
-        const error = validateFile(file);
-        if (error) {
-          validationErrors.push(error);
-          continue;
-        }
-
-        if (isHeicFile(file)) {
-          setIsConverting(true);
-          try {
-            const heic2any = (await import('heic2any')).default;
-            const blob = await heic2any({
-              blob: file,
-              toType: 'image/jpeg',
-              quality: 0.85,
-            });
-
-            const convertedBlob = Array.isArray(blob) ? blob[0] : blob;
-            const convertedFile = new File(
-              [convertedBlob],
-              file.name.replace(/\.heic$/i, '.jpg'),
-              { type: 'image/jpeg' }
-            );
-            validFiles.push(convertedFile);
-          } catch {
-            validationErrors.push(`${file.name}: Failed to convert HEIC file.`);
-          } finally {
-            setIsConverting(false);
+      try {
+        for (const file of files) {
+          const error = validateFile(file);
+          if (error) {
+            validationErrors.push(error);
+            continue;
           }
-        } else {
-          validFiles.push(file);
+
+          let prepared = file;
+
+          // iOS hands back HEIC unless the user has "Most Compatible" set.
+          // Neither sharp nor the vision APIs can read it, so convert first.
+          if (isHeicFile(file)) {
+            setPrepStatus('Converting HEIC...');
+            try {
+              const heic2any = (await import('heic2any')).default;
+              const blob = await heic2any({
+                blob: file,
+                toType: 'image/jpeg',
+                quality: 0.85,
+              });
+
+              const convertedBlob = Array.isArray(blob) ? blob[0] : blob;
+              prepared = new File(
+                [convertedBlob],
+                file.name.replace(/\.hei[cf]$/i, '.jpg'),
+                { type: 'image/jpeg' }
+              );
+            } catch {
+              validationErrors.push(`${file.name}: Failed to convert HEIC file.`);
+              continue;
+            }
+          }
+
+          // Shrink to something the OCR route will accept and a phone can
+          // actually upload. Falls back to the original on any failure.
+          setPrepStatus('Preparing image...');
+          prepared = await downscaleImage(prepared);
+          validFiles.push(prepared);
         }
+      } finally {
+        setPrepStatus(null);
       }
 
       setErrors(validationErrors);
@@ -154,7 +171,7 @@ export default function FileUpload({
       <div className="flex flex-col gap-3 md:hidden">
         <button
           onClick={handleCameraClick}
-          disabled={isConverting}
+          disabled={prepStatus !== null}
           className="flex items-center justify-center gap-3 w-full py-5 bg-[var(--accent-orange)] hover:bg-[var(--accent-orange-hover)] text-white text-lg font-semibold rounded-2xl transition-all duration-150 active:scale-[0.98] min-h-[44px] disabled:opacity-50"
         >
           <Camera size={24} />
@@ -162,7 +179,7 @@ export default function FileUpload({
         </button>
         <button
           onClick={handleGalleryClick}
-          disabled={isConverting}
+          disabled={prepStatus !== null}
           className="flex items-center justify-center gap-3 w-full py-4 bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] text-[var(--text-primary)] text-base font-medium rounded-2xl border border-[var(--border-subtle)] transition-all duration-150 active:scale-[0.98] min-h-[44px] disabled:opacity-50"
         >
           <Upload size={20} />
@@ -201,11 +218,11 @@ export default function FileUpload({
         </div>
       </div>
 
-      {/* HEIC Converting Status */}
-      {isConverting && (
+      {/* Image preparation status (HEIC decode / downscale) */}
+      {prepStatus && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[var(--accent-orange-muted)] text-[var(--accent-orange)] text-sm animate-fade-in-up">
           <div className="w-4 h-4 border-2 border-[var(--accent-orange)] border-t-transparent rounded-full animate-spin" />
-          Converting HEIC...
+          {prepStatus}
         </div>
       )}
 

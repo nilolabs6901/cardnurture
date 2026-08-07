@@ -6,6 +6,7 @@ Business card scanner and nurture CRM purpose-built for Combilift regional sales
 
 - Node.js >= 18
 - npm
+- PostgreSQL 14+ (running locally, or a hosted instance)
 
 ## Setup
 
@@ -20,7 +21,7 @@ npm install
 # Copy environment file
 cp .env.example .env
 
-# Run database migrations
+# Point DATABASE_URL at your Postgres instance, then run migrations
 npx prisma migrate dev
 
 # Seed the database with sample data
@@ -32,10 +33,19 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Default Login
+## Signing In
 
-- **Email:** admin@cardnurture.app
-- **Password:** cardnurture123
+Sign-in is **email-only** — there is no password prompt. Enter an address on the
+login screen and you are in; if no user exists for that address, one is created
+on the spot (`src/lib/auth.ts`).
+
+The seeded sample data belongs to **admin@cardnurture.app**, so use that address
+to see the demo contacts and drafts.
+
+> **Deployment note:** because any address is accepted, the app has no real
+> access control of its own. Only run it somewhere that is already restricted —
+> a private network, a VPN, or behind an authenticating proxy. Do not expose it
+> on a public URL as-is.
 
 ## Features
 
@@ -49,29 +59,52 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Triggering Nurture Cron
 
-Manually generate nurture email drafts for eligible contacts:
+`CRON_SECRET` must be set in `.env` — the endpoint fails closed and returns
+`503 Cron is not configured.` when it is missing, so this is not optional.
 
-```bash
-curl http://localhost:3000/api/cron/generate-nurture
-```
-
-For production, set up a cron job or Vercel Cron to call this endpoint. Optionally set `CRON_SECRET` in `.env` and pass it as a query parameter:
+Pass the secret either as a query parameter or as a bearer token:
 
 ```bash
 curl "http://localhost:3000/api/cron/generate-nurture?secret=your-secret"
+
+curl -H "Authorization: Bearer your-secret" \
+  http://localhost:3000/api/cron/generate-nurture
 ```
+
+For production, point a scheduler (Railway cron, Vercel Cron, or any external
+job runner) at that URL. Nothing generates nurture drafts unless something calls
+this endpoint on a schedule.
 
 ## Optional Configuration
 
-### LLM (Enhanced Parsing & Personality Analysis)
+### Claude API (OCR Accuracy, Personality Analysis, Prospect Research)
 
-Set these in `.env` to enable LLM-powered features:
+**This is the single highest-impact setting.** OCR tries Claude vision first and
+only falls back to Tesseract, which is markedly weaker on business cards. Set:
+
+```
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+The same key powers personality research (`src/lib/research.ts`) and supply-chain
+prospect research (`src/lib/supply-chain.ts`).
+
+Note that a failed vision call is **not** surfaced to the user — it is logged and
+the request silently falls back to Tesseract. If scans are coming back poor,
+check the server logs for `[OCR]` lines before assuming the key is set correctly.
+
+### OpenAI-Compatible Fallback
+
+Used only when `ANTHROPIC_API_KEY` is unset:
 
 ```
 LLM_API_KEY=your-api-key
-LLM_BASE_URL=https://api.openai.com/v1
+LLM_BASE_URL=https://api.openai.com
 LLM_MODEL=gpt-4o-mini
 ```
+
+`LLM_BASE_URL` takes **no** `/v1` suffix — the code appends
+`/v1/chat/completions` itself.
 
 ### SMTP (Real Email Sending)
 
@@ -101,7 +134,7 @@ npm test
 - Next.js 14 (App Router)
 - TypeScript
 - Tailwind CSS
-- Prisma + SQLite (Postgres-compatible schema)
+- Prisma + PostgreSQL
 - NextAuth.js
 - Tesseract.js (OCR)
 - Vitest (Testing)

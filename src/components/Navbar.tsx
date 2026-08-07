@@ -17,6 +17,29 @@ export default function Navbar() {
   const { data: session } = useSession();
 
   return (
+    <>
+    {/* Mobile header. The bottom nav covers navigation on small screens, so
+        this only carries branding and the sign-out affordance -- without it
+        there is no way to sign out on a phone. */}
+    <header className="md:hidden sticky top-0 z-50 flex items-center justify-between min-h-[3.5rem] px-4 bg-[var(--bg-surface)]/90 backdrop-blur-xl border-b border-[var(--border-subtle)] pt-safe">
+      <Link href="/" className="flex items-center min-h-[44px] -ml-1 pl-1 pr-2">
+        <span className="font-bold text-base tracking-tight text-[var(--text-primary)]">
+          Card
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--accent-orange)] mx-0.5 align-middle" />
+          Nurture
+        </span>
+      </Link>
+      {session?.user && (
+        <button
+          onClick={() => signOut({ callbackUrl: '/login' })}
+          aria-label="Sign out"
+          className="flex items-center justify-center min-h-[44px] min-w-[44px] -mr-2 rounded-lg text-[var(--text-secondary)] active:bg-[var(--bg-surface-hover)] transition-colors"
+        >
+          <LogOut size={18} />
+        </button>
+      )}
+    </header>
+
     <nav className="hidden md:flex sticky top-0 z-50 bg-[var(--bg-surface)]/90 backdrop-blur-xl border-b border-[var(--border-subtle)] h-16 items-center px-6">
       {/* Left: Brand */}
       <Link href="/" className="flex items-center gap-2 mr-8">
@@ -65,5 +88,6 @@ export default function Navbar() {
         </button>
       </div>
     </nav>
+    </>
   );
 }
