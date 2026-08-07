@@ -497,7 +497,7 @@ export default function ReviewPage() {
         </div>
       )}
 
-      <div className="max-w-lg mx-auto px-4 pb-32 md:pb-8">
+      <div className="max-w-lg mx-auto px-4 pb-action-bar">
         {/* Progress bar */}
         <div className="sticky top-0 z-20 bg-[var(--bg-primary)] pt-2 pb-3">
           <div className="w-full h-1 bg-[var(--bg-elevated)] rounded-full overflow-hidden mb-2">
@@ -539,8 +539,9 @@ export default function ReviewPage() {
           />
         </div>
 
-        {/* Bottom action bar -- fixed on mobile */}
-        <div className="fixed bottom-0 left-0 right-0 bg-[var(--bg-primary)]/90 backdrop-blur-sm border-t border-[var(--border-subtle)] p-4 pb-safe md:static md:border-t-0 md:bg-transparent md:backdrop-blur-none md:p-0 md:mt-6 z-30">
+        {/* Bottom action bar. Docked above the bottom nav on mobile -- at
+            bottom-0 it sits under the nav (z-50) and is unreachable. */}
+        <div className="fixed action-bar-above-nav left-0 right-0 bg-[var(--bg-primary)]/95 backdrop-blur-sm border-t border-[var(--border-subtle)] p-4 md:static md:border-t-0 md:bg-transparent md:backdrop-blur-none md:p-0 md:mt-6 z-40">
           <div className="flex gap-3 max-w-lg mx-auto">
             {/* Skip */}
             <button
