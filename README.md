@@ -33,19 +33,38 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Signing In
+## Access
 
-Sign-in is **email-only** — there is no password prompt. Enter an address on the
-login screen and you are in; if no user exists for that address, one is created
-on the spot (`src/lib/auth.ts`).
+This is a single-user tool. There is **no sign-in screen**. Access is gated on
+one shared secret, `APP_ACCESS_KEY`:
 
-The seeded sample data belongs to **admin@cardnurture.app**, so use that address
-to see the demo contacts and drafts.
+1. Set `APP_ACCESS_KEY` in the environment (`openssl rand -hex 32` generates a
+   good one).
+2. On each new device, visit the app once with the key appended:
+   `https://your-app.example.com/?key=<APP_ACCESS_KEY>`
+3. The middleware stores it in an httpOnly cookie and redirects to the clean
+   URL. That browser stays signed in for a year; you never type it again.
 
-> **Deployment note:** because any address is accepted, the app has no real
-> access control of its own. Only run it somewhere that is already restricted —
-> a private network, a VPN, or behind an authenticating proxy. Do not expose it
-> on a public URL as-is.
+Requests without a valid cookie get a **404**, so a visitor who guesses the URL
+gets no signal that anything is hosted there. If `APP_ACCESS_KEY` is unset the
+app refuses every request with a 503 — it fails closed rather than serving
+itself to the internet.
+
+**To revoke a device** (lost phone, key shared by accident), change
+`APP_ACCESS_KEY`. That invalidates every stored cookie at once; re-visit the
+`?key=` URL on the devices you still want. There is no per-device sign-out.
+
+`/api/cron/generate-nurture` is deliberately outside this gate — it has its own
+`CRON_SECRET` check so an external scheduler can reach it.
+
+### Whose data you see
+
+Contacts are scoped to a user row. With no sign-in, `getOwnerUserId()`
+(`src/lib/auth.ts`) resolves the owner: `OWNER_EMAIL` if set, otherwise the
+existing user holding the most contacts, otherwise a freshly created account.
+The middle case matters on an existing deployment — the old email-only sign-in
+created a user for any address typed at the login screen, so a database can
+carry stray accounts, and the one with the data is the one to keep using.
 
 ## Features
 

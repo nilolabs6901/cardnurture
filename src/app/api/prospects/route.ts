@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getOwnerUserId } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { prospectCreateSchema } from '@/lib/validators';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const userId = (session.user as any).id as string;
+    const userId = await getOwnerUserId();
     const { searchParams } = new URL(request.url);
     const contactId = searchParams.get('contactId');
     const stage = searchParams.get('stage');
@@ -82,12 +76,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const userId = (session.user as any).id as string;
+    const userId = await getOwnerUserId();
     const body = await request.json();
 
     const parsed = prospectCreateSchema.safeParse(body);

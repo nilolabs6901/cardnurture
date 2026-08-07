@@ -3,7 +3,6 @@ import { DM_Sans, Space_Grotesk } from 'next/font/google';
 import './globals.css';
 import Navbar from '@/components/Navbar';
 import BottomNav from '@/components/BottomNav';
-import { AuthProvider } from '@/components/AuthProvider';
 
 const dmSans = DM_Sans({
   subsets: ['latin'],
@@ -48,13 +47,11 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${dmSans.variable} ${spaceGrotesk.variable}`}>
       <body className="font-[var(--font-dm-sans)] bg-[var(--bg-primary)] text-[var(--text-primary)] min-h-screen antialiased">
-        <AuthProvider>
-          <Navbar />
-          <main className="pb-nav">
-            {children}
-          </main>
-          <BottomNav />
-        </AuthProvider>
+        <Navbar />
+        <main className="pb-nav">
+          {children}
+        </main>
+        <BottomNav />
       </body>
     </html>
   );
