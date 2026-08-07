@@ -13,6 +13,9 @@ const navLinks = [
 export default function Navbar() {
   const pathname = usePathname();
 
+  // Nothing here is reachable before unlocking.
+  if (pathname === '/unlock') return null;
+
   return (
     <>
     {/* Mobile header. The bottom nav covers navigation on small screens, so
