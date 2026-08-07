@@ -222,7 +222,7 @@ export default function ConfirmPage() {
   }
 
   return (
-    <div className="animate-fade-in-up max-w-lg mx-auto px-4 pt-4 pb-28 md:pb-8">
+    <div className="animate-fade-in-up max-w-lg mx-auto px-4 pt-4 pb-action-bar">
       {/* Back button */}
       <button
         onClick={() => router.push('/upload')}
@@ -276,8 +276,9 @@ export default function ConfirmPage() {
         <p className="mt-4 text-sm text-[var(--status-error)] text-center">{saveError}</p>
       )}
 
-      {/* Save Contact -- fixed bottom on mobile */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-[var(--bg-primary)]/90 backdrop-blur-sm border-t border-[var(--border-subtle)] pb-safe md:static md:border-t-0 md:bg-transparent md:backdrop-blur-none md:p-0 md:mt-6 z-30">
+      {/* Save Contact. Docked above the bottom nav on mobile -- at bottom-0 it
+          sits under the nav (z-50) and is neither visible nor tappable. */}
+      <div className="fixed action-bar-above-nav left-0 right-0 p-4 bg-[var(--bg-primary)]/95 backdrop-blur-sm border-t border-[var(--border-subtle)] md:static md:border-t-0 md:bg-transparent md:backdrop-blur-none md:p-0 md:mt-6 z-40">
         <button
           onClick={handleSave}
           disabled={isSaving}
