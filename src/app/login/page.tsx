@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, FormEvent } from 'react';
 import { signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
@@ -9,14 +9,10 @@ import { Suspense } from 'react';
 function LoginForm() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(() =>
+    searchParams.get('error') ? 'Something went wrong. Please try again.' : ''
+  );
   const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    if (searchParams.get('error')) {
-      setError('Something went wrong. Please try again.');
-    }
-  }, [searchParams]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();

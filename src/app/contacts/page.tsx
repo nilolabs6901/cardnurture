@@ -93,7 +93,8 @@ function SalesStagePill({ stage }: { stage: string }) {
 /* ─── Days Since Indicator ─── */
 
 function DaysSinceCreated({ dateStr }: { dateStr: string }) {
-  const days = Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
+  const [now] = useState(() => Date.now());
+  const days = Math.floor((now - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
 
   if (days <= 7) return null;
 
