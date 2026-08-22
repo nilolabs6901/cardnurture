@@ -1,11 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('next-auth', () => ({
-  getServerSession: vi.fn(),
-}));
-
 vi.mock('@/lib/auth', () => ({
-  authOptions: {},
+  getOwnerUserId: vi.fn(),
 }));
 
 vi.mock('@/lib/prisma', () => ({
@@ -20,12 +16,12 @@ vi.mock('@/lib/prisma', () => ({
   },
 }));
 
-import { getServerSession } from 'next-auth';
+import { getOwnerUserId } from '@/lib/auth';
 import { GET, POST } from '@/app/api/contacts/[id]/activities/route';
 import { prisma } from '@/lib/prisma';
 import { activityInputSchema } from '../activity';
 
-const mockedGetServerSession = vi.mocked(getServerSession);
+const mockedGetOwnerUserId = vi.mocked(getOwnerUserId);
 const mockedContactFindFirst = vi.mocked(prisma.contact.findFirst);
 const mockedActivityFindMany = vi.mocked(prisma.activity.findMany);
 const mockedActivityCreate = vi.mocked(prisma.activity.create);
@@ -46,9 +42,7 @@ function request(method: 'GET' | 'POST', body?: unknown) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockedGetServerSession.mockResolvedValue({
-    user: { id: 'user-1' },
-  } as any);
+  mockedGetOwnerUserId.mockResolvedValue('user-1');
   mockedContactFindFirst.mockResolvedValue({ id: 'contact-1' } as any);
   mockedActivityFindMany.mockResolvedValue([]);
   mockedActivityCreate.mockResolvedValue({
@@ -92,13 +86,17 @@ describe('activity input', () => {
 });
 
 describe('activity API', () => {
-  it('requires an authenticated session for reads', async () => {
-    mockedGetServerSession.mockResolvedValue(null);
+  it('resolves the shared owner before reading activities', async () => {
+    mockedContactFindFirst.mockResolvedValue(null);
 
     const response = await GET(request('GET') as any, routeContext('contact-1'));
 
-    expect(response.status).toBe(401);
-    expect(mockedContactFindFirst).not.toHaveBeenCalled();
+    expect(response.status).toBe(404);
+    expect(mockedGetOwnerUserId).toHaveBeenCalledOnce();
+    expect(mockedContactFindFirst).toHaveBeenCalledWith({
+      where: { id: 'contact-1', userId: 'user-1' },
+      select: { id: true },
+    });
   });
 
   it('scopes reads through the authenticated contact owner', async () => {

@@ -43,8 +43,7 @@ export const viewport: Viewport = {
   // values on notched iPhones. Without it those insets are always 0 and the
   // fixed bottom nav sits under the home indicator.
   viewportFit: 'cover',
-  // Deliberately no maximumScale: pinch-zoom stays available for reading
-  // OCR output and card photos on a phone.
+  // Pinch zoom remains available for reading OCR output and card photos.
   themeColor: '#0F1117',
 };
 

@@ -2,12 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-vi.mock('next-auth', () => ({
-  getServerSession: vi.fn(),
-}));
-
 vi.mock('@/lib/auth', () => ({
-  authOptions: {},
+  getOwnerUserId: vi.fn(),
 }));
 
 vi.mock('@/lib/prisma', () => ({
@@ -18,11 +14,11 @@ vi.mock('@/lib/prisma', () => ({
   },
 }));
 
-import { getServerSession } from 'next-auth';
+import { getOwnerUserId } from '@/lib/auth';
 import { GET } from '@/app/api/contacts/nurture-status/route';
 import { prisma } from '@/lib/prisma';
 
-const mockedGetServerSession = vi.mocked(getServerSession);
+const mockedGetOwnerUserId = vi.mocked(getOwnerUserId);
 const mockedContactFindMany = vi.mocked(prisma.contact.findMany);
 
 const NOW = new Date('2026-08-22T12:00:00.000Z');
@@ -57,7 +53,7 @@ async function getStatus() {
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
-  mockedGetServerSession.mockResolvedValue({ user: { id: 'user-1' } } as any);
+  mockedGetOwnerUserId.mockResolvedValue('user-1');
   mockedContactFindMany.mockResolvedValue([]);
 });
 
