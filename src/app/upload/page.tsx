@@ -1,115 +1,17 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect, Suspense, ChangeEvent, DragEvent } from 'react';
+import { useState, useCallback, useRef, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Upload, Camera, X, Loader2, CheckCircle, AlertCircle, FileImage } from 'lucide-react';
+import { Camera, X, Loader2, CheckCircle, AlertCircle, FileImage } from 'lucide-react';
+import FileUpload, { type FileUploadHandle } from '@/components/FileUpload';
+import {
+  ACTIVE_SCAN_ID,
+  loadScan,
+  removeScan,
+  saveScan,
+  type ScanRecord,
+} from '@/lib/scan-store';
 import type { ParseResult, BatchOcrItem } from '@/types';
-
-/* ─── FileUpload Component ─── */
-
-interface FileUploadProps {
-  multiple?: boolean;
-  onFilesSelected: (files: File[]) => void;
-}
-
-function FileUpload({ multiple = true, onFilesSelected }: FileUploadProps) {
-  const [isDragActive, setIsDragActive] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  function handleFiles(fileList: FileList | null) {
-    if (!fileList || fileList.length === 0) return;
-    const accepted: File[] = [];
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
-
-    for (let i = 0; i < fileList.length; i++) {
-      const file = fileList[i];
-      // Accept by MIME type or by extension for HEIC (some browsers don't set MIME)
-      const ext = file.name.toLowerCase().split('.').pop();
-      if (allowedTypes.includes(file.type) || ext === 'heic' || ext === 'heif') {
-        accepted.push(file);
-      }
-    }
-
-    if (accepted.length > 0) {
-      onFilesSelected(accepted);
-    }
-  }
-
-  function handleDragEnter(e: DragEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragActive(true);
-  }
-
-  function handleDragLeave(e: DragEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragActive(false);
-  }
-
-  function handleDragOver(e: DragEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-  }
-
-  function handleDrop(e: DragEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragActive(false);
-    handleFiles(e.dataTransfer.files);
-  }
-
-  function handleInputChange(e: ChangeEvent<HTMLInputElement>) {
-    handleFiles(e.target.files);
-    // Reset input so same file can be re-selected
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  }
-
-  return (
-    <div
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
-      onClick={() => fileInputRef.current?.click()}
-      className={`relative flex flex-col items-center justify-center gap-4 w-full min-h-[280px] rounded-2xl border-2 border-dashed cursor-pointer transition-all duration-200 ${
-        isDragActive
-          ? 'border-[var(--accent-orange)] bg-[var(--accent-orange-muted)]'
-          : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] hover:border-[var(--text-tertiary)] hover:bg-[var(--bg-surface-hover)]'
-      }`}
-    >
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp,image/heic,.heic,.heif"
-        multiple={multiple}
-        onChange={handleInputChange}
-        className="hidden"
-      />
-
-      <div
-        className={`w-16 h-16 rounded-full flex items-center justify-center transition-colors duration-200 ${
-          isDragActive
-            ? 'bg-[var(--accent-orange)] text-white'
-            : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)]'
-        }`}
-      >
-        <Upload size={28} />
-      </div>
-
-      <div className="text-center px-4">
-        <p className="text-[var(--text-primary)] font-medium text-sm">
-          {isDragActive ? 'Drop your card images here' : 'Tap to upload or drag & drop'}
-        </p>
-        <p className="text-[var(--text-tertiary)] text-xs mt-1">
-          JPEG, PNG, WebP, or HEIC -- up to 5MB each
-        </p>
-      </div>
-    </div>
-  );
-}
 
 /* ─── BatchProcessingQueue Component ─── */
 
@@ -258,9 +160,8 @@ function UploadPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [batchMode, setBatchMode] = useState(false);
   const [batchItems, setBatchItems] = useState<BatchOcrItem[]>([]);
-  const [batchResults, setBatchResults] = useState<ParseResult[]>([]);
   const [error, setError] = useState('');
-  const processingRef = useRef(false);
+  const uploadRef = useRef<FileUploadHandle>(null);
 
   // Warn before navigating away during batch processing
   useEffect(() => {
@@ -278,6 +179,39 @@ function UploadPage() {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [batchMode, batchItems]);
+
+  // Recover a completed scan if mobile browser storage dropped the session copy.
+  useEffect(() => {
+    let active = true;
+
+    async function recoverScan() {
+      const scan = await loadScan();
+      if (!active || !scan) return;
+
+      if (scan.kind === 'single' && scan.status === 'ready' && scan.result) {
+        try {
+          sessionStorage.setItem('cardnurture_ocr_result', JSON.stringify(scan.result));
+        } catch {
+          // Confirm can read the IndexedDB record directly when sessionStorage is unavailable.
+        }
+        router.push('/confirm');
+        return;
+      }
+
+      if (scan.kind === 'batch' && scan.items && scan.items.length > 0) {
+        setBatchMode(true);
+        setBatchItems(scan.items);
+        if (scan.status === 'failed') {
+          setError(scan.error || 'The previous scan could not be completed.');
+        }
+      }
+    }
+
+    void recoverScan();
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
   async function processOcr(file: File): Promise<ParseResult | null> {
     const formData = new FormData();
@@ -300,21 +234,51 @@ function UploadPage() {
     setIsProcessing(true);
     setError('');
 
+    const now = Date.now();
+    const processingRecord: ScanRecord = {
+      id: ACTIVE_SCAN_ID,
+      kind: 'single',
+      status: 'processing',
+      fileName: file.name,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await saveScan(processingRecord);
+
     try {
       const result = await processOcr(file);
       if (result) {
-        sessionStorage.setItem(
-          'cardnurture_ocr_result',
-          JSON.stringify({
-            rawText: result.rawText,
-            fields: result.fields,
-            confidence: result.confidence,
-          })
-        );
+        await saveScan({
+          ...processingRecord,
+          status: 'ready',
+          result,
+          updatedAt: Date.now(),
+        });
+        try {
+          sessionStorage.setItem(
+            'cardnurture_ocr_result',
+            JSON.stringify({
+              rawText: result.rawText,
+              fields: result.fields,
+              confidence: result.confidence,
+            })
+          );
+        } catch {
+          // Confirm reads the durable scan record when sessionStorage is unavailable.
+        }
         router.push('/confirm');
+        return;
       }
+      throw new Error('No result returned from OCR.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to process image.');
+      const message = err instanceof Error ? err.message : 'Failed to process image.';
+      await saveScan({
+        ...processingRecord,
+        status: 'failed',
+        error: message,
+        updatedAt: Date.now(),
+      });
+      setError(message);
       setIsProcessing(false);
     }
   }
@@ -330,39 +294,79 @@ function UploadPage() {
       status: 'queued' as const,
     }));
     setBatchItems(items);
-
-    const results: ParseResult[] = [];
+    let currentItems = items;
+    const createdAt = Date.now();
+    await saveScan({
+      id: ACTIVE_SCAN_ID,
+      kind: 'batch',
+      status: 'processing',
+      items: currentItems,
+      createdAt,
+      updatedAt: createdAt,
+    });
 
     // Process files sequentially
     for (let i = 0; i < files.length; i++) {
       // Update current item to processing
-      setBatchItems((prev) =>
-        prev.map((item, idx) =>
-          idx === i ? { ...item, status: 'processing' as const } : item
-        )
+      currentItems = currentItems.map((item, idx) =>
+        idx === i ? { ...item, status: 'processing' as const } : item
       );
+      setBatchItems(currentItems);
+      await saveScan({
+        id: ACTIVE_SCAN_ID,
+        kind: 'batch',
+        status: 'processing',
+        items: currentItems,
+        createdAt,
+        updatedAt: Date.now(),
+      });
 
       try {
         const result = await processOcr(files[i]);
         if (result) {
-          results.push(result);
-          setBatchItems((prev) =>
-            prev.map((item, idx) =>
-              idx === i ? { ...item, status: 'extracted' as const, result } : item
-            )
+          currentItems = currentItems.map((item, idx) =>
+            idx === i ? { ...item, status: 'extracted' as const, result } : item
           );
+          setBatchItems(currentItems);
+          await saveScan({
+            id: ACTIVE_SCAN_ID,
+            kind: 'batch',
+            status: 'processing',
+            items: currentItems,
+            createdAt,
+            updatedAt: Date.now(),
+          });
+        } else {
+          throw new Error('No result returned from OCR.');
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed';
-        setBatchItems((prev) =>
-          prev.map((item, idx) =>
-            idx === i ? { ...item, status: 'failed' as const, error: errorMessage } : item
-          )
+        currentItems = currentItems.map((item, idx) =>
+          idx === i ? { ...item, status: 'failed' as const, error: errorMessage } : item
         );
+        setBatchItems(currentItems);
+        await saveScan({
+          id: ACTIVE_SCAN_ID,
+          kind: 'batch',
+          status: 'processing',
+          items: currentItems,
+          createdAt,
+          updatedAt: Date.now(),
+        });
       }
     }
 
-    setBatchResults(results);
+    await saveScan({
+      id: ACTIVE_SCAN_ID,
+      kind: 'batch',
+      status: currentItems.some((item) => item.status === 'extracted') ? 'ready' : 'failed',
+      items: currentItems,
+      error: currentItems.some((item) => item.status === 'extracted')
+        ? undefined
+        : 'No cards were successfully processed.',
+      createdAt,
+      updatedAt: Date.now(),
+    });
   }
 
   const handleFilesSelected = useCallback(
@@ -392,6 +396,7 @@ function UploadPage() {
     }
 
     sessionStorage.setItem('cardnurture_batch_results', JSON.stringify(successResults));
+    void removeScan();
     router.push('/upload/review');
   }
 
@@ -430,7 +435,7 @@ function UploadPage() {
 
         {/* Upload zone OR batch queue */}
         {!batchMode ? (
-          <FileUpload multiple={true} onFilesSelected={handleFilesSelected} />
+          <FileUpload ref={uploadRef} multiple={true} onFilesSelected={handleFilesSelected} />
         ) : (
           <BatchProcessingQueue
             items={batchItems}
@@ -445,8 +450,8 @@ function UploadPage() {
             onClick={() => {
               setBatchMode(false);
               setBatchItems([]);
-              setBatchResults([]);
               setError('');
+              void removeScan();
             }}
             className="mt-3 w-full text-center text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors py-2 min-h-[44px]"
           >
@@ -458,19 +463,7 @@ function UploadPage() {
       {/* Quick-scan FAB after returning from saving a contact */}
       {showFab && !isProcessing && !batchMode && (
         <button
-          onClick={() => {
-            const fileInput = document.createElement('input');
-            fileInput.type = 'file';
-            fileInput.accept = 'image/jpeg,image/png,image/webp,image/heic,.heic,.heif';
-            fileInput.capture = 'environment';
-            fileInput.onchange = (e) => {
-              const target = e.target as HTMLInputElement;
-              if (target.files && target.files.length > 0) {
-                handleSingleFile(target.files[0]);
-              }
-            };
-            fileInput.click();
-          }}
+          onClick={() => uploadRef.current?.openCamera()}
           className="fixed bottom-24 right-4 md:bottom-8 md:right-8 w-14 h-14 rounded-full bg-[var(--accent-orange)] hover:bg-[var(--accent-orange-hover)] text-white flex items-center justify-center shadow-lg transition-all duration-150 active:scale-[0.98] z-40"
           style={{ boxShadow: '0 4px 20px rgba(243, 111, 33, 0.4)' }}
         >

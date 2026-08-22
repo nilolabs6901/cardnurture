@@ -3,15 +3,6 @@
 Scope: make the documented local/deployment configuration match the live PostgreSQL schema.
 
 - [x] G1: example environment uses PostgreSQL
-  CHECK: grep -n 'DATABASE_URL="postgresql://' .env.example
-  EXPECT: DATABASE_URL="postgresql://
-  EVIDENCE: 3:DATABASE_URL="postgresql://cardnurture:***@localhost:5432/cardnurture?schema=public"
-
-- [x] G2: README no longer instructs SQLite setup
-  CHECK: ! grep -nEi 'SQLite|file:\./dev\.db' README.md
-  EXPECT: 
-  EVIDENCE: (no output)
-- [x] G1: example environment uses PostgreSQL
   CHECK: grep -q 'DATABASE_URL="postgresql://' .env.example && printf 'postgres-env-pass'
   EXPECT: postgres-env-pass
   EVIDENCE: postgres-env-pass

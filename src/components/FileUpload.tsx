@@ -1,39 +1,23 @@
 'use client';
 
-import { useRef, useState, useCallback } from 'react';
+import { forwardRef, useRef, useState, useCallback, useImperativeHandle } from 'react';
 import { Camera, Upload, X } from 'lucide-react';
+import { isHeifScanFile, validateScanFile } from '@/lib/scan-store';
+
+export interface FileUploadHandle {
+  openCamera: () => void;
+  openGallery: () => void;
+}
 
 interface FileUploadProps {
   onFilesSelected: (files: File[]) => void;
   multiple?: boolean;
 }
 
-const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-
-function isHeicFile(file: File): boolean {
-  return (
-    file.type === 'image/heic' ||
-    file.name.toLowerCase().endsWith('.heic')
-  );
-}
-
-function validateFile(file: File): string | null {
-  const isAcceptedType =
-    ACCEPTED_TYPES.includes(file.type) || isHeicFile(file);
-  if (!isAcceptedType) {
-    return `${file.name}: Unsupported file type. Use JPEG, PNG, WebP, or HEIC.`;
-  }
-  if (file.size > MAX_FILE_SIZE) {
-    return `${file.name}: File too large. Maximum size is 5MB.`;
-  }
-  return null;
-}
-
-export default function FileUpload({
-  onFilesSelected,
-  multiple = false,
-}: FileUploadProps) {
+const FileUpload = forwardRef<FileUploadHandle, FileUploadProps>(function FileUpload(
+  { onFilesSelected, multiple = false },
+  ref
+) {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -47,13 +31,13 @@ export default function FileUpload({
       const validFiles: File[] = [];
 
       for (const file of files) {
-        const error = validateFile(file);
+        const error = validateScanFile(file);
         if (error) {
           validationErrors.push(error);
           continue;
         }
 
-        if (isHeicFile(file)) {
+        if (isHeifScanFile(file)) {
           setIsConverting(true);
           try {
             const heic2any = (await import('heic2any')).default;
@@ -66,12 +50,19 @@ export default function FileUpload({
             const convertedBlob = Array.isArray(blob) ? blob[0] : blob;
             const convertedFile = new File(
               [convertedBlob],
-              file.name.replace(/\.heic$/i, '.jpg'),
+              file.name.replace(/\.(?:heic|heif)$/i, '.jpg'),
               { type: 'image/jpeg' }
             );
-            validFiles.push(convertedFile);
+            const convertedError = validateScanFile(convertedFile);
+            if (convertedError) {
+              validationErrors.push(
+                `${file.name}: Converted image is too large. Maximum size is 5MB.`
+              );
+            } else {
+              validFiles.push(convertedFile);
+            }
           } catch {
-            validationErrors.push(`${file.name}: Failed to convert HEIC file.`);
+            validationErrors.push(`${file.name}: Failed to convert HEIC/HEIF file.`);
           } finally {
             setIsConverting(false);
           }
@@ -95,6 +86,11 @@ export default function FileUpload({
   const handleGalleryClick = () => {
     galleryInputRef.current?.click();
   };
+
+  useImperativeHandle(ref, () => ({
+    openCamera: handleCameraClick,
+    openGallery: handleGalleryClick,
+  }));
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -144,7 +140,7 @@ export default function FileUpload({
       <input
         ref={galleryInputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/heic"
+        accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
         multiple={multiple}
         className="hidden"
         onChange={handleInputChange}
@@ -196,7 +192,7 @@ export default function FileUpload({
             {isDragging ? 'Drop your card images here' : 'Drag & drop business card images'}
           </p>
           <p className="text-xs text-[var(--text-tertiary)] mt-1">
-            or click to browse. JPEG, PNG, WebP, HEIC up to 5MB
+            or click to browse. JPEG, PNG, WebP, HEIC/HEIF up to 5MB
           </p>
         </div>
       </div>
@@ -205,7 +201,7 @@ export default function FileUpload({
       {isConverting && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[var(--accent-orange-muted)] text-[var(--accent-orange)] text-sm animate-fade-in-up">
           <div className="w-4 h-4 border-2 border-[var(--accent-orange)] border-t-transparent rounded-full animate-spin" />
-          Converting HEIC...
+          Converting HEIC/HEIF...
         </div>
       )}
 
@@ -230,4 +226,8 @@ export default function FileUpload({
       )}
     </div>
   );
-}
+});
+
+FileUpload.displayName = 'FileUpload';
+
+export default FileUpload;

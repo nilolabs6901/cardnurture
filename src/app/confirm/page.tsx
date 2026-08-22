@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Loader2, Search } from 'lucide-react';
 import PersonalityCard from '@/components/PersonalityCard';
 import ConfidenceField from '@/components/ConfidenceField';
+import { ACTIVE_SCAN_ID, loadScan, removeScan, saveScan } from '@/lib/scan-store';
 import type { ParseResult, ParsedContact, ConfidenceLevel, PersonalityType, ResearchResult } from '@/types';
 
 /* ─── ContactForm Component ─── */
@@ -90,25 +91,74 @@ export default function ConfirmPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [mounted, setMounted] = useState(false);
+  const savingRef = useRef(false);
 
-  // Read sessionStorage on mount
+  // Read sessionStorage first, then recover from the durable scan store after mobile suspension.
   useEffect(() => {
-    const stored = sessionStorage.getItem('cardnurture_ocr_result');
-    if (!stored) {
-      router.push('/upload');
-      return;
-    }
+    let active = true;
 
-    try {
-      const parsed: ParseResult = JSON.parse(stored);
+    async function restoreScan() {
+      let parsed: ParseResult | null = null;
+      try {
+        const stored = sessionStorage.getItem('cardnurture_ocr_result');
+        if (stored) parsed = JSON.parse(stored) as ParseResult;
+      } catch {
+        parsed = null;
+      }
+
+      const persisted = await loadScan();
+      if (!parsed && persisted?.kind === 'single' && persisted.status === 'ready' && persisted.result) {
+        parsed = persisted.result;
+        try {
+          sessionStorage.setItem('cardnurture_ocr_result', JSON.stringify(parsed));
+        } catch {
+          // The durable record remains available for the next mount.
+        }
+      }
+
+      if (!active || !parsed) {
+        if (active) router.push('/upload');
+        return;
+      }
+
       setFields(parsed.fields);
       setConfidence(parsed.confidence);
       setRawText(parsed.rawText);
       setMounted(true);
-    } catch {
-      router.push('/upload');
+
+      if (!persisted || persisted.kind !== 'single') {
+        const now = Date.now();
+        await saveScan({
+          id: ACTIVE_SCAN_ID,
+          kind: 'single',
+          status: 'ready',
+          result: parsed,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
     }
+
+    void restoreScan();
+    return () => {
+      active = false;
+    };
   }, [router]);
+
+  // Persist edits as the user reviews fields, not only after OCR completes.
+  useEffect(() => {
+    if (!mounted || savingRef.current) return;
+
+    void loadScan().then((persisted) => {
+      if (!persisted || persisted.kind !== 'single' || savingRef.current) return;
+      void saveScan({
+        ...persisted,
+        status: 'ready',
+        result: { rawText, fields, confidence },
+        updatedAt: Date.now(),
+      });
+    });
+  }, [confidence, fields, mounted, rawText]);
 
   // Personality research — user-triggered (not automatic)
   // This lets the user verify/correct the parsed fields before researching
@@ -182,6 +232,7 @@ export default function ConfirmPage() {
     }
 
     setIsSaving(true);
+    savingRef.current = true;
     setSaveError('');
 
     try {
@@ -209,9 +260,17 @@ export default function ConfirmPage() {
       }
 
       const data = await res.json();
-      sessionStorage.removeItem('cardnurture_ocr_result');
+      try {
+        sessionStorage.removeItem('cardnurture_ocr_result');
+      } catch {
+        // Continue; the durable record is removed below.
+      }
+      await removeScan();
+      setMounted(false);
+      savingRef.current = false;
       router.push(`/drafts/${data.draftId}`);
     } catch (err) {
+      savingRef.current = false;
       setSaveError(err instanceof Error ? err.message : 'Failed to save contact.');
       setIsSaving(false);
     }
