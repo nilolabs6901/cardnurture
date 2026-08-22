@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+# A new push to the same branch supersedes the previous run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    env:
+      # `prisma generate` and `next build` read this while loading modules that
+      # construct PrismaClient. It only has to parse as a Postgres URL --
+      # nothing in this job connects to a database, and no migration runs.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cardnurture?schema=public
+      NEXTAUTH_SECRET: ci-placeholder-not-a-real-secret
+      NEXTAUTH_URL: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      # postinstall runs `prisma generate`, so the client exists after this.
+      - name: Install dependencies
+        run: npm ci
+
+      # Typecheck and tests are seconds each -- run them before the build so a
+      # failure reports quickly instead of after a full compile.
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+# Deliberately no lint step: the repo has no ESLint config, so `next lint`
+# drops into an interactive setup prompt and would hang the job. Add a config
+# first, then a lint step here.

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getOwnerUserId } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 function escapeCsvValue(value: string | null | undefined): string {
@@ -21,12 +20,7 @@ function escapeCsvValue(value: string | null | undefined): string {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const userId = (session.user as any).id as string;
+    const userId = await getOwnerUserId();
     const { searchParams } = new URL(request.url);
     const stage = searchParams.get('stage');
     const contactId = searchParams.get('contactId');

@@ -85,7 +85,7 @@ async function extractWithVisionAPI(imageBuffer: Buffer): Promise<string | null>
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-opus-5',
         max_tokens: 1024,
         messages: [
           {
@@ -217,8 +217,30 @@ function cleanOcrText(text: string): string {
   return cleaned.trim();
 }
 
+/** Hard ceiling on the Tesseract path. See the comment in extractWithTesseract. */
+const TESSERACT_TIMEOUT_MS = 60_000;
+
+function withTimeout<T>(work: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`${label} timed out after ${ms}ms`)),
+      ms
+    );
+    work.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (error) => { clearTimeout(timer); reject(error); }
+    );
+  });
+}
+
 /**
  * Extract text using Tesseract.js with preprocessed image.
+ *
+ * Wrapped in a timeout because the failure mode here is a hang, not an error:
+ * when the WASM core cannot start, Emscripten calls abort() and the promise
+ * from createWorker() never settles either way. The request then sits open
+ * until the platform's proxy kills it, with no error to show the user. A
+ * timeout converts that into an ordinary failure the route can report.
  */
 async function extractWithTesseract(imageBuffer: Buffer): Promise<string> {
   let worker: Tesseract.Worker | null = null;
@@ -228,13 +250,22 @@ async function extractWithTesseract(imageBuffer: Buffer): Promise<string> {
     const processed = await preprocessImage(imageBuffer);
 
     console.log('[OCR] Creating Tesseract worker...');
-    worker = await Tesseract.createWorker('eng', Tesseract.OEM.LSTM_ONLY, {
-      logger: (m) => {
-        if (m.status) {
-          console.log(`[OCR] ${m.status}: ${Math.round((m.progress || 0) * 100)}%`);
-        }
-      },
-    });
+    worker = await withTimeout(
+      Tesseract.createWorker('eng', Tesseract.OEM.LSTM_ONLY, {
+        // Read eng.traineddata from the working directory instead of fetching
+        // ~5MB from a CDN on every cold start. The file is committed at the
+        // repo root and copied into the standalone build.
+        langPath: process.cwd(),
+        gzip: false,
+        logger: (m) => {
+          if (m.status) {
+            console.log(`[OCR] ${m.status}: ${Math.round((m.progress || 0) * 100)}%`);
+          }
+        },
+      }),
+      TESSERACT_TIMEOUT_MS,
+      'Tesseract worker startup'
+    );
 
     await worker.setParameters({
       tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
@@ -242,7 +273,11 @@ async function extractWithTesseract(imageBuffer: Buffer): Promise<string> {
     });
 
     console.log('[OCR] Starting Tesseract recognition...');
-    const { data: { text } } = await worker.recognize(processed);
+    const { data: { text } } = await withTimeout(
+      worker.recognize(processed),
+      TESSERACT_TIMEOUT_MS,
+      'Tesseract recognition'
+    );
 
     console.log(`[OCR] Tesseract raw (${text.length} chars):\n${text}`);
     const cleaned = cleanOcrText(text);

@@ -123,14 +123,91 @@ input, select, textarea {
   padding-bottom: env(safe-area-inset-bottom, 16px);
 }
 
-/* Extend the app under notches when viewport-fit=cover is active. */
-html {
-  min-height: 100%;
+/* Top safe area -- matters in PWA standalone mode, where the translucent
+   status bar overlays the header. */
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Clears the fixed bottom nav (h-16 = 4rem) plus the home-indicator inset.
+   Desktop has no bottom nav, so the reservation is dropped at md. */
+.pb-nav {
+  padding-bottom: calc(4rem + 1rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 768px) {
+  .pb-nav {
+    padding-bottom: 0;
+  }
+}
+
+/* Sits a floating action button just above the bottom nav. */
+.bottom-above-nav {
+  bottom: calc(4rem + 1rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 768px) {
+  .bottom-above-nav {
+    bottom: 2rem;
+  }
+}
+
+/* Docks a full-width action bar flush on top of the bottom nav. Without this
+   a `fixed bottom-0` bar lands underneath the nav (which is z-50) and its
+   button becomes both invisible and untappable. */
+.action-bar-above-nav {
+  bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* Reserves room for that action bar plus the nav beneath it. */
+.pb-action-bar {
+  padding-bottom: calc(4rem + 6rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 768px) {
+  .pb-action-bar {
+    padding-bottom: 2rem;
+  }
+}
+
+/* Hides the scrollbar on horizontal chip strips while keeping them scrollable. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Extends a control's touch target to 44px without changing how it looks.
+   Chips are visually ~36px by design; forcing min-height on a rounded-full
+   element turns short labels ("All") into circles, so grow the hit area with
+   a transparent overlay instead. */
+.tap-44 {
+  position: relative;
+}
+.tap-44::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 44px;
+}
+
+/* Horizontal strips (kanban columns, filter chips) should not fight the
+   browser's vertical scroll, and should settle on a card edge. */
+.snap-strip {
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+.snap-strip > * {
+  scroll-snap-align: start;
 }
 
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  min-height: 100dvh;
-  padding-top: env(safe-area-inset-top, 0px);
 }

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getOwnerUserId } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { contactUpdateSchema } from '@/lib/validators';
 
@@ -10,12 +9,7 @@ interface RouteContext {
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const userId = (session.user as any).id as string;
+    const userId = await getOwnerUserId();
     const { id } = await context.params;
 
     const contact = await prisma.contact.findUnique({
@@ -57,12 +51,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const userId = (session.user as any).id as string;
+    const userId = await getOwnerUserId();
     const { id } = await context.params;
 
     // Verify the contact belongs to this user
@@ -139,12 +128,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const userId = (session.user as any).id as string;
+    const userId = await getOwnerUserId();
     const { id } = await context.params;
 
     const existing = await prisma.contact.findUnique({

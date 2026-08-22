@@ -3,7 +3,6 @@ import { DM_Sans, Space_Grotesk } from 'next/font/google';
 import './globals.css';
 import Navbar from '@/components/Navbar';
 import BottomNav from '@/components/BottomNav';
-import { AuthProvider } from '@/components/AuthProvider';
 import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
 
 const dmSans = DM_Sans({
@@ -40,7 +39,12 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  // viewportFit: 'cover' is what makes env(safe-area-inset-*) resolve to real
+  // values on notched iPhones. Without it those insets are always 0 and the
+  // fixed bottom nav sits under the home indicator.
   viewportFit: 'cover',
+  // Deliberately no maximumScale: pinch-zoom stays available for reading
+  // OCR output and card photos on a phone.
   themeColor: '#0F1117',
 };
 
@@ -53,13 +57,11 @@ export default function RootLayout({
     <html lang="en" className={`${dmSans.variable} ${spaceGrotesk.variable}`}>
       <body className="font-[var(--font-dm-sans)] bg-[var(--bg-primary)] text-[var(--text-primary)] min-h-screen antialiased">
         <ServiceWorkerRegistration />
-        <AuthProvider>
-          <Navbar />
-          <main className="pb-20 md:pb-0">
-            {children}
-          </main>
-          <BottomNav />
-        </AuthProvider>
+        <Navbar />
+        <main className="pb-nav">
+          {children}
+        </main>
+        <BottomNav />
       </body>
     </html>
   );

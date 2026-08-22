@@ -2,8 +2,6 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useSession, signOut } from 'next-auth/react';
-import { LogOut } from 'lucide-react';
 
 const navLinks = [
   { href: '/upload', label: 'Upload' },
@@ -14,9 +12,25 @@ const navLinks = [
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { data: session } = useSession();
+
+  // Nothing here is reachable before unlocking.
+  if (pathname === '/unlock') return null;
 
   return (
+    <>
+    {/* Mobile header. The bottom nav covers navigation on small screens, so
+        this carries branding only -- there is no sign-out, because there is
+        no sign-in. Revoking a device means rotating APP_ACCESS_KEY. */}
+    <header className="md:hidden sticky top-0 z-50 flex items-center min-h-[3.5rem] px-4 bg-[var(--bg-surface)]/90 backdrop-blur-xl border-b border-[var(--border-subtle)] pt-safe">
+      <Link href="/" className="flex items-center min-h-[44px] -ml-1 pl-1 pr-2">
+        <span className="font-bold text-base tracking-tight text-[var(--text-primary)]">
+          Card
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-[var(--accent-orange)] mx-0.5 align-middle" />
+          Nurture
+        </span>
+      </Link>
+    </header>
+
     <nav className="hidden md:flex sticky top-0 z-50 bg-[var(--bg-surface)]/90 backdrop-blur-xl border-b border-[var(--border-subtle)] h-16 items-center px-6">
       {/* Left: Brand */}
       <Link href="/" className="flex items-center gap-2 mr-8">
@@ -48,22 +62,7 @@ export default function Navbar() {
           );
         })}
       </div>
-
-      {/* Right: User info + Sign Out */}
-      <div className="flex items-center gap-4">
-        {session?.user?.email && (
-          <span className="text-xs text-[var(--text-tertiary)] hidden lg:block">
-            {session.user.email}
-          </span>
-        )}
-        <button
-          onClick={() => signOut({ callbackUrl: '/login' })}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-all duration-150 active:scale-[0.98] min-h-[44px] min-w-[44px] justify-center"
-        >
-          <LogOut size={16} />
-          <span className="hidden lg:inline">Sign Out</span>
-        </button>
-      </div>
     </nav>
+    </>
   );
 }

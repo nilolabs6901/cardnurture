@@ -6,7 +6,7 @@ Business card scanner and nurture CRM purpose-built for Combilift regional sales
 
 - Node.js >= 18
 - npm
-- PostgreSQL
+- PostgreSQL 14+ (running locally, or a hosted instance)
 
 ## Setup
 
@@ -21,14 +21,10 @@ npm install
 # Copy environment file
 cp .env.example .env
 
-# Create the PostgreSQL database if it does not already exist. Use credentials
-# that match DATABASE_URL in .env.
-createdb cardnurture
+# Point DATABASE_URL at your Postgres instance, then run migrations
+npx prisma migrate dev
 
-# Apply the committed PostgreSQL migrations
-npx prisma migrate deploy
-
-# Optional: seed the database with sample data
+# Seed the database with sample data
 npx prisma db seed
 
 # Start the dev server
@@ -37,33 +33,38 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Environment variables
+## Access
 
-The base application requires `DATABASE_URL`, `NEXTAUTH_SECRET`, and
-`NEXTAUTH_URL` in `.env`. Set `CRON_SECRET` whenever the nurture cron endpoint
-is enabled; that endpoint fails closed when it is missing. The deployment
-example includes all four values:
+This is a single-user tool. There is **no sign-in screen**. Access is gated on
+one shared secret, `APP_ACCESS_KEY`:
 
-```dotenv
-DATABASE_URL="postgresql://cardnurture:***@localhost:5432/cardnurture?schema=public"
-NEXTAUTH_SECRET="replace-with-a-long-random-secret"
-NEXTAUTH_URL="http://localhost:3000"
-CRON_SECRET="replace-with-a-long-random-cron-secret"
-```
+1. Set `APP_ACCESS_KEY` in the environment (`openssl rand -hex 32` generates a
+   good one).
+2. On each new device, visit the app once with the key appended:
+   `https://your-app.example.com/?key=<APP_ACCESS_KEY>`
+3. The middleware stores it in an httpOnly cookie and redirects to the clean
+   URL. That browser stays signed in for a year; you never type it again.
 
-Use a strong, unique random value for `NEXTAUTH_SECRET` and `CRON_SECRET` in
-every deployed environment. For production, set `NEXTAUTH_URL` to the public
-HTTPS URL of the app. Replace the example PostgreSQL credentials and database
-host with the values for your environment.
+Requests without a valid cookie get a **404**, so a visitor who guesses the URL
+gets no signal that anything is hosted there. If `APP_ACCESS_KEY` is unset the
+app refuses every request with a 503 — it fails closed rather than serving
+itself to the internet.
 
-To validate the Prisma datasource without connecting to the database, run:
+**To revoke a device** (lost phone, key shared by accident), change
+`APP_ACCESS_KEY`. That invalidates every stored cookie at once; re-visit the
+`?key=` URL on the devices you still want. There is no per-device sign-out.
 
-```bash
-DATABASE_URL='postgresql://cardnurture:***@localhost:5432/cardnurture?schema=public' npx prisma validate
-```
+`/api/cron/generate-nurture` is deliberately outside this gate — it has its own
+`CRON_SECRET` check so an external scheduler can reach it.
 
-For deployments, run `npx prisma migrate deploy` as part of the release before
-starting the application. This applies the checked-in PostgreSQL migrations.
+### Whose data you see
+
+Contacts are scoped to a user row. With no sign-in, `getOwnerUserId()`
+(`src/lib/auth.ts`) resolves the owner: `OWNER_EMAIL` if set, otherwise the
+existing user holding the most contacts, otherwise a freshly created account.
+The middle case matters on an existing deployment — the old email-only sign-in
+created a user for any address typed at the login screen, so a database can
+carry stray accounts, and the one with the data is the one to keep using.
 
 ## Features
 
@@ -77,31 +78,43 @@ starting the application. This applies the checked-in PostgreSQL migrations.
 
 ## Triggering Nurture Cron
 
-Manually generate nurture email drafts for eligible contacts:
+`CRON_SECRET` must be set in `.env` — the endpoint fails closed and returns
+`503 Cron is not configured.` when it is missing, so this is not optional.
+
+Pass the secret either as a query parameter or as a bearer token:
 
 ```bash
-curl -H "Authorization: Bearer $CRON_SECRET" \
+curl "http://localhost:3000/api/cron/generate-nurture?secret=your-secret"
+
+curl -H "Authorization: Bearer your-secret" \
   http://localhost:3000/api/cron/generate-nurture
 ```
 
-For production, set up a cron job or Vercel Cron to call this endpoint. The
-endpoint requires `CRON_SECRET`; pass the matching value as a query parameter
-or bearer token:
+For production, point a scheduler (Railway cron, Vercel Cron, or any external
+job runner) at that URL. Nothing generates nurture drafts unless something calls
+this endpoint on a schedule.
 
-```bash
-curl "http://localhost:3000/api/cron/generate-nurture?secret=$CRON_SECRET"
-# Or: curl -H "Authorization: Bearer $CRON_SECRET" \
-#   http://localhost:3000/api/cron/generate-nurture
+## Optional Configuration
+
+### Claude API (OCR Accuracy, Personality Analysis, Prospect Research)
+
+**This is the single highest-impact setting.** OCR tries Claude vision first and
+only falls back to Tesseract, which is markedly weaker on business cards. Set:
+
+```
+ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-## Optional integrations
+The same key powers personality research (`src/lib/research.ts`) and supply-chain
+prospect research (`src/lib/supply-chain.ts`).
 
-### LLM (Enhanced Parsing & Personality Analysis)
+Note that a failed vision call is **not** surfaced to the user — it is logged and
+the request silently falls back to Tesseract. If scans are coming back poor,
+check the server logs for `[OCR]` lines before assuming the key is set correctly.
 
-The app works without an LLM and falls back to rules-based parsing and
-keyword-based personality classification. To enable an OpenAI-compatible LLM,
-set `LLM_API_KEY` and `LLM_BASE_URL` together. `LLM_MODEL` is optional and
-defaults to `gpt-4o-mini`:
+### OpenAI-Compatible Fallback
+
+Used only when `ANTHROPIC_API_KEY` is unset:
 
 ```
 LLM_API_KEY=your-api-key
@@ -109,12 +122,10 @@ LLM_BASE_URL=https://api.openai.com
 LLM_MODEL=gpt-4o-mini
 ```
 
-Alternatively, set `ANTHROPIC_API_KEY` to use Anthropic for personality
-analysis.
+`LLM_BASE_URL` takes **no** `/v1` suffix — the code appends
+`/v1/chat/completions` itself.
 
 ### SMTP (Real Email Sending)
-
-Email sending is disabled unless all five SMTP variables are set:
 
 ```
 SMTP_HOST=smtp.gmail.com
@@ -125,9 +136,6 @@ SMTP_FROM=your-email@gmail.com
 ```
 
 ### Search API (Better Personality Research)
-
-The search API is optional. Without it, the app falls back to DuckDuckGo HTML
-search:
 
 ```
 SEARCH_API_KEY=your-key

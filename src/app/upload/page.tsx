@@ -464,7 +464,8 @@ function UploadPage() {
       {showFab && !isProcessing && !batchMode && (
         <button
           onClick={() => uploadRef.current?.openCamera()}
-          className="fixed bottom-24 right-4 md:bottom-8 md:right-8 w-14 h-14 rounded-full bg-[var(--accent-orange)] hover:bg-[var(--accent-orange-hover)] text-white flex items-center justify-center shadow-lg transition-all duration-150 active:scale-[0.98] z-40"
+          aria-label="Scan another card"
+          className="fixed bottom-above-nav right-4 md:right-8 w-14 h-14 rounded-full bg-[var(--accent-orange)] hover:bg-[var(--accent-orange-hover)] text-white flex items-center justify-center shadow-lg transition-all duration-150 active:scale-[0.98] z-40"
           style={{ boxShadow: '0 4px 20px rgba(243, 111, 33, 0.4)' }}
         >
           <Camera size={24} />

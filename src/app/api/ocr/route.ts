@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { extractText } from '@/lib/ocr';
 import { parseBusinessCard } from '@/lib/parser';
 
@@ -15,11 +13,6 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const formData = await request.formData();
     const file = formData.get('file');
 

@@ -363,13 +363,15 @@ export default function NurturePage() {
   function ContactRow({ contact }: { contact: NurtureContact }) {
     return (
       <div className="flex items-center gap-3 py-3 px-4 border-b border-[var(--border-subtle)] hover:bg-[var(--bg-surface-hover)] transition-colors">
-        {/* Checkbox */}
-        <input
-          type="checkbox"
-          checked={selectedIds.has(contact.id)}
-          onChange={() => toggleSelect(contact.id)}
-          className="accent-[var(--accent-orange)] w-4 h-4 cursor-pointer shrink-0"
-        />
+        {/* Checkbox -- the label carries the 44px tap area on touch */}
+        <label className="shrink-0 -my-3 -ml-2 pl-2 pr-1 min-h-[44px] flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            checked={selectedIds.has(contact.id)}
+            onChange={() => toggleSelect(contact.id)}
+            className="accent-[var(--accent-orange)] w-5 h-5 cursor-pointer"
+          />
+        </label>
 
         {/* Nurture toggle */}
         <button
@@ -432,7 +434,7 @@ export default function NurturePage() {
               contact.draftCount > 0 ? 'edit' : 'generate'
             )
           }
-          className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-[var(--accent-orange)] hover:bg-[var(--accent-orange-muted)] transition-all duration-150 active:scale-[0.98] min-h-[36px]"
+          className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-[var(--accent-orange)] hover:bg-[var(--accent-orange-muted)] transition-all duration-150 active:scale-[0.98] min-h-[44px]"
         >
           <FileText size={13} />
           <span className="hidden sm:inline">
@@ -537,15 +539,16 @@ export default function NurturePage() {
         </div>
       </div>
 
-      {/* Grouping tabs */}
-      <div className="flex gap-2 mb-5 overflow-x-auto no-scrollbar">
+      {/* Grouping tabs. py-1.5 keeps overflow-x-auto from clipping the chips'
+          expanded 44px tap area. */}
+      <div className="flex gap-2 mb-4 py-1.5 overflow-x-auto no-scrollbar snap-strip -mx-4 px-4 md:mx-0 md:px-0">
         {groupTabs.map((tab) => {
           const isActive = groupTab === tab.key;
           return (
             <button
               key={tab.key}
               onClick={() => setGroupTab(tab.key)}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-150 active:scale-[0.98] min-h-[36px] ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-150 active:scale-[0.98] shrink-0 tap-44 ${
                 isActive
                   ? 'bg-[var(--accent-orange-muted)] text-[var(--accent-orange)] border border-[var(--accent-orange)]'
                   : 'bg-transparent text-[var(--text-secondary)] border border-transparent hover:bg-[var(--bg-surface-hover)]'
@@ -667,7 +670,7 @@ export default function NurturePage() {
           {/* Bulk pause */}
           <button
             onClick={() => bulkPatch({ nurtureEnabled: false })}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-all duration-150 active:scale-[0.98] min-h-[36px]"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-all duration-150 active:scale-[0.98] min-h-[44px] min-w-[44px] justify-center"
             title="Pause nurture"
           >
             <Pause size={15} />
@@ -677,7 +680,7 @@ export default function NurturePage() {
           {/* Bulk resume */}
           <button
             onClick={() => bulkPatch({ nurtureEnabled: true })}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--accent-orange)] hover:bg-[var(--bg-surface-hover)] transition-all duration-150 active:scale-[0.98] min-h-[36px]"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--accent-orange)] hover:bg-[var(--bg-surface-hover)] transition-all duration-150 active:scale-[0.98] min-h-[44px] min-w-[44px] justify-center"
             title="Resume nurture"
           >
             <Play size={15} />
@@ -693,7 +696,7 @@ export default function NurturePage() {
                 setBulkIntervalOpen(!bulkIntervalOpen);
                 setBulkTopicOpen(false);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-all duration-150 active:scale-[0.98] min-h-[36px]"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-all duration-150 active:scale-[0.98] min-h-[44px] min-w-[44px] justify-center"
             >
               <Clock size={15} />
               <span className="hidden sm:inline">Interval</span>
@@ -730,7 +733,7 @@ export default function NurturePage() {
                 setBulkTopicOpen(!bulkTopicOpen);
                 setBulkIntervalOpen(false);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-all duration-150 active:scale-[0.98] min-h-[36px]"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-all duration-150 active:scale-[0.98] min-h-[44px] min-w-[44px] justify-center"
             >
               <FileText size={15} />
               <span className="hidden sm:inline">Topic</span>
@@ -764,7 +767,7 @@ export default function NurturePage() {
 
           <button
             onClick={() => setSelectedIds(new Set())}
-            className="flex items-center justify-center p-1.5 rounded-lg text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-all duration-150 active:scale-[0.98] min-h-[36px] min-w-[36px]"
+            className="flex items-center justify-center p-1.5 rounded-lg text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-all duration-150 active:scale-[0.98] min-h-[44px] min-w-[36px]"
             title="Clear selection"
           >
             <X size={16} />

@@ -1,23 +1,37 @@
 import { z } from 'zod';
 
+/**
+ * A text field backed by a nullable column. Absent, null, and '' all mean "no
+ * value", and clients legitimately send all three -- the scan pages post
+ * `personalitySummary: null` whenever the user saves without running
+ * personality research. `.optional()` alone accepts undefined but rejects
+ * null, which rejected the whole request.
+ */
+const optionalText = z.union([z.string(), z.null()]).optional();
+
+/** Same, but validates format when a non-empty value is actually present. */
+const optionalEmail = z
+  .union([z.string().email('Invalid email address'), z.literal(''), z.null()])
+  .optional();
+
 export const contactCreateSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  email: z.string().email('Invalid email address').optional().or(z.literal('')),
-  phone: z.string().optional().or(z.literal('')),
-  company: z.string().optional().or(z.literal('')),
-  address: z.string().optional().or(z.literal('')),
+  email: optionalEmail,
+  phone: optionalText,
+  company: optionalText,
+  address: optionalText,
   personalityType: z
     .enum(['Driver', 'Analytical', 'Expressive', 'Amiable', 'Balanced'])
     .optional(),
-  personalitySummary: z.string().optional().or(z.literal('')),
+  personalitySummary: optionalText,
   personalityConfidence: z
     .enum(['high', 'medium', 'low', 'none'])
     .optional(),
-  researchSnippets: z.string().optional().or(z.literal('')),
-  industryVertical: z.string().optional().or(z.literal('')),
-  rawOcrText: z.string().optional().or(z.literal('')),
+  researchSnippets: optionalText,
+  industryVertical: optionalText,
+  rawOcrText: optionalText,
   needsReview: z.boolean().optional(),
-  batchId: z.string().optional().or(z.literal('')),
+  batchId: optionalText,
 });
 
 export const SALES_STAGES = ['Lead', 'Contacted', 'Demo Scheduled', 'Proposal Sent', 'Closed Won', 'Closed Lost'] as const;

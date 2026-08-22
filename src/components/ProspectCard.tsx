@@ -115,7 +115,7 @@ export default function ProspectCard({
         <select
           value={prospect.status}
           onChange={(e) => onStatusChange(prospect.id, e.target.value)}
-          className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-lg px-2 py-1.5 text-xs text-[var(--text-primary)] focus:border-[var(--accent-orange)] focus:ring-1 focus:ring-[var(--accent-orange)] outline-none transition-all duration-200 appearance-none cursor-pointer flex-1 min-w-0"
+          className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-lg px-2 py-1.5 text-xs text-[var(--text-primary)] focus:border-[var(--accent-orange)] focus:ring-1 focus:ring-[var(--accent-orange)] outline-none transition-all duration-200 appearance-none cursor-pointer flex-1 min-w-0 min-h-[44px]"
         >
           <option value="new">New</option>
           <option value="contacted">Contacted</option>
