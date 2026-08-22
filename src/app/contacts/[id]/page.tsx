@@ -21,6 +21,7 @@ import {
   X,
   Trash2,
   AlertTriangle,
+  Clock3,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { COMBILIFT_MODEL_OPTIONS, DRAFT_TEMPLATE_TYPES } from '@/lib/email-templates';
@@ -29,6 +30,7 @@ import PersonalityBadge from '@/components/PersonalityBadge';
 import PersonalityCard from '@/components/PersonalityCard';
 import ProspectPipeline from '@/components/ProspectPipeline';
 import NurtureSettings from '@/components/NurtureSettings';
+import ActivityTimeline from '@/components/activity/ActivityTimeline';
 import StatusBadge from '@/components/StatusBadge';
 
 const INDUSTRY_OPTIONS = [
@@ -791,7 +793,16 @@ export default function ContactDetailPage() {
           />
         </AccordionSection>
 
-        {/* Section 5: Draft History */}
+        {/* Section 5: Activity Timeline */}
+        <AccordionSection
+          title="Activity"
+          icon={<Clock3 size={18} className="text-[var(--text-secondary)]" />}
+          defaultOpen={true}
+        >
+          <ActivityTimeline contactId={contactId} />
+        </AccordionSection>
+
+        {/* Section 6: Draft History */}
         <AccordionSection
           title="Draft History"
           icon={
