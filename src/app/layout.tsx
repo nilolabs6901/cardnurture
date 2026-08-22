@@ -4,6 +4,7 @@ import './globals.css';
 import Navbar from '@/components/Navbar';
 import BottomNav from '@/components/BottomNav';
 import { AuthProvider } from '@/components/AuthProvider';
+import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration';
 
 const dmSans = DM_Sans({
   subsets: ['latin'],
@@ -26,12 +27,20 @@ export const metadata: Metadata = {
     statusBarStyle: 'black-translucent',
     title: 'CardNurture',
   },
+  icons: {
+    icon: [
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+      { url: '/icon-512-maskable.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
+  viewportFit: 'cover',
   themeColor: '#0F1117',
 };
 
@@ -43,6 +52,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${dmSans.variable} ${spaceGrotesk.variable}`}>
       <body className="font-[var(--font-dm-sans)] bg-[var(--bg-primary)] text-[var(--text-primary)] min-h-screen antialiased">
+        <ServiceWorkerRegistration />
         <AuthProvider>
           <Navbar />
           <main className="pb-20 md:pb-0">

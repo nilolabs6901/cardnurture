@@ -123,7 +123,14 @@ input, select, textarea {
   padding-bottom: env(safe-area-inset-bottom, 16px);
 }
 
+/* Extend the app under notches when viewport-fit=cover is active. */
+html {
+  min-height: 100%;
+}
+
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
+  min-height: 100dvh;
+  padding-top: env(safe-area-inset-top, 0px);
 }
