@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { differenceInDays } from 'date-fns';
+import { addDays, differenceInCalendarDays } from 'date-fns';
 
 export async function GET() {
   try {
@@ -17,13 +17,19 @@ export async function GET() {
       where: { userId },
       include: {
         emailDrafts: {
+          where: { type: 'nurture' },
           orderBy: { createdAt: 'desc' },
-          take: 1,
-          select: { createdAt: true, status: true },
+          select: {
+            id: true,
+            type: true,
+            createdAt: true,
+            status: true,
+            windowStart: true,
+          },
         },
         _count: {
           select: {
-            emailDrafts: true,
+            emailDrafts: { where: { type: 'nurture' } },
             prospects: true,
           },
         },
@@ -34,15 +40,28 @@ export async function GET() {
     const now = new Date();
 
     const enrichedContacts = contacts.map((contact) => {
-      const lastDraft = contact.emailDrafts[0] ?? null;
-      const lastDraftDate = lastDraft ? lastDraft.createdAt : null;
+      // The relation and count are filtered in the Prisma query. Keep a
+      // defensive filter here so this response cannot leak other draft types
+      // if the query shape is changed or mocked incorrectly.
+      const nurtureDrafts = contact.emailDrafts.filter(
+        (draft) => draft.type === 'nurture',
+      );
+      const latestDraft = nurtureDrafts[0] ?? null;
+      const lastDraftDate = latestDraft ? latestDraft.createdAt : null;
       const daysSinceLastDraft = lastDraftDate
-        ? differenceInDays(now, new Date(lastDraftDate))
+        ? differenceInCalendarDays(now, new Date(lastDraftDate))
         : null;
-      const dueInDays =
-        daysSinceLastDraft !== null
-          ? contact.nurtureInterval - daysSinceLastDraft
-          : 0;
+
+      // A contact's first nurture window starts at createdAt. Subsequent
+      // windows use the explicit windowStart stored on the latest nurture
+      // draft; drafts created manually without a window use createdAt as a
+      // conservative schedule anchor.
+      const scheduleAnchor = latestDraft?.windowStart ?? lastDraftDate ?? contact.createdAt;
+      const nextDueDate = addDays(
+        new Date(scheduleAnchor),
+        contact.nurtureInterval,
+      );
+      const dueInDays = differenceInCalendarDays(nextDueDate, now);
       const isOverdue = contact.nurtureEnabled && dueInDays < 0;
       const isDueSoon =
         contact.nurtureEnabled && dueInDays >= 0 && dueInDays <= 7;
@@ -61,7 +80,8 @@ export async function GET() {
         dueInDays,
         isOverdue,
         isDueSoon,
-        draftCount: contact._count.emailDrafts,
+        draftCount: nurtureDrafts.length,
+        latestNurtureDraftId: latestDraft?.id ?? null,
         researchSnippets: contact.researchSnippets,
       };
     });

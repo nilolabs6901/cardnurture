@@ -37,6 +37,7 @@ interface NurtureContact {
   isOverdue: boolean;
   isDueSoon: boolean;
   draftCount: number;
+  latestNurtureDraftId: string | null;
   researchSnippets: string | null;
 }
 
@@ -107,6 +108,7 @@ export default function NurturePage() {
   const [showResearch, setShowResearch] = useState(false);
   const [bulkIntervalOpen, setBulkIntervalOpen] = useState(false);
   const [bulkTopicOpen, setBulkTopicOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchNurtureData();
@@ -114,14 +116,19 @@ export default function NurturePage() {
 
   async function fetchNurtureData() {
     setIsLoading(true);
+    setErrorMessage(null);
     try {
       const res = await fetch('/api/contacts/nurture-status');
-      if (res.ok) {
-        const json = await res.json();
-        setData(json);
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error || 'Failed to load nurture status.');
       }
-    } catch {
-      // silent fail
+      const json = await res.json();
+      setData(json);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Failed to load nurture status.',
+      );
     } finally {
       setIsLoading(false);
     }
@@ -168,12 +175,16 @@ export default function NurturePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids, ...body }),
       });
-      if (res.ok) {
-        await fetchNurtureData();
-        setSelectedIds(new Set());
+      if (!res.ok) {
+        const responseBody = await res.json().catch(() => null);
+        throw new Error(responseBody?.error || 'Failed to update contacts.');
       }
-    } catch {
-      // silent fail
+      await fetchNurtureData();
+      setSelectedIds(new Set());
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Failed to update contacts.',
+      );
     }
   }
 
@@ -187,23 +198,27 @@ export default function NurturePage() {
           nurtureEnabled: !currentEnabled,
         }),
       });
-      if (res.ok) {
-        setData((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            contacts: prev.contacts.map((c) =>
-              c.id === id ? { ...c, nurtureEnabled: !currentEnabled } : c
-            ),
-            summary: {
-              ...prev.summary,
-              activeNurture: prev.summary.activeNurture + (currentEnabled ? -1 : 1),
-            },
-          };
-        });
+      if (!res.ok) {
+        const responseBody = await res.json().catch(() => null);
+        throw new Error(responseBody?.error || 'Failed to update nurture status.');
       }
-    } catch {
-      // silent fail
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          contacts: prev.contacts.map((c) =>
+            c.id === id ? { ...c, nurtureEnabled: !currentEnabled } : c
+          ),
+          summary: {
+            ...prev.summary,
+            activeNurture: prev.summary.activeNurture + (currentEnabled ? -1 : 1),
+          },
+        };
+      });
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Failed to update nurture status.',
+      );
     }
   }
 
@@ -214,39 +229,45 @@ export default function NurturePage() {
     setActiveDraft(null);
     setIsDraftLoading(true);
     setShowResearch(false);
+    setErrorMessage(null);
 
     try {
+      let draftId: string | null = null;
+
       if (mode === 'generate') {
         const res = await fetch(`/api/contacts/${contact.id}/generate-draft`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ templateType: 'follow-up' }),
+          body: JSON.stringify({ templateType: 'nurture' }),
         });
-        if (res.ok) {
-          const result = await res.json();
-          // Fetch the created draft
-          const draftRes = await fetch(`/api/contacts/${contact.id}`);
-          if (draftRes.ok) {
-            const contactData = await draftRes.json();
-            const latestDraft = contactData.emailDrafts?.[0];
-            if (latestDraft) {
-              setActiveDraft(latestDraft);
-            }
-          }
+        if (!res.ok) {
+          const responseBody = await res.json().catch(() => null);
+          throw new Error(responseBody?.error || 'Failed to generate nurture draft.');
         }
+        const result = await res.json();
+        draftId = result.draftId;
       } else {
-        // Edit mode - fetch latest draft
-        const res = await fetch(`/api/contacts/${contact.id}`);
-        if (res.ok) {
-          const contactData = await res.json();
-          const latestDraft = contactData.emailDrafts?.[0];
-          if (latestDraft) {
-            setActiveDraft(latestDraft);
-          }
-        }
+        draftId = contact.latestNurtureDraftId;
       }
-    } catch {
-      // silent fail
+
+      if (!draftId) {
+        throw new Error('No nurture draft is available for this contact.');
+      }
+
+      const draftRes = await fetch(`/api/drafts/${draftId}`);
+      if (!draftRes.ok) {
+        const responseBody = await draftRes.json().catch(() => null);
+        throw new Error(responseBody?.error || 'Failed to load nurture draft.');
+      }
+      const draft = await draftRes.json();
+      if (draft.type !== 'nurture') {
+        throw new Error('The selected draft is not a nurture draft.');
+      }
+      setActiveDraft(draft);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Failed to load nurture draft.',
+      );
     } finally {
       setIsDraftLoading(false);
     }
@@ -262,19 +283,23 @@ export default function NurturePage() {
     async (saveData: any) => {
       if (!activeDraft?.id) return;
       try {
-        await fetch(`/api/contacts/${activeContactId}`, {
+        const res = await fetch(`/api/drafts/${activeDraft.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            draftId: activeDraft.id,
-            ...saveData,
-          }),
+          body: JSON.stringify(saveData),
         });
-      } catch {
-        // silent fail
+        if (!res.ok) {
+          const responseBody = await res.json().catch(() => null);
+          throw new Error(responseBody?.error || 'Failed to save nurture draft.');
+        }
+        setErrorMessage(null);
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error ? error.message : 'Failed to save nurture draft.',
+        );
       }
     },
-    [activeDraft, activeContactId]
+    [activeDraft]
   );
 
   const handleDraftRegenerate = useCallback(async () => {
@@ -434,6 +459,23 @@ export default function NurturePage() {
           Nurture Management
         </h1>
       </div>
+
+      {errorMessage && (
+        <div
+          role="alert"
+          className="mb-5 flex items-start justify-between gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300"
+        >
+          <span>{errorMessage}</span>
+          <button
+            type="button"
+            onClick={() => setErrorMessage(null)}
+            className="shrink-0 text-red-200 hover:text-white"
+            aria-label="Dismiss error"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {/* Stat tiles */}
       <StatTileRow
