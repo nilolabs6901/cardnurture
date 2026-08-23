@@ -1,5 +1,6 @@
 'use client';
 
+
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
@@ -22,7 +23,9 @@ import {
   Trash2,
   AlertTriangle,
   Clock3,
+  Linkedin,
 } from 'lucide-react';
+import { linkedInTarget } from '@/lib/linkedin';
 import { format } from 'date-fns';
 import { COMBILIFT_MODEL_OPTIONS, DRAFT_TEMPLATE_TYPES } from '@/lib/email-templates';
 import { SALES_STAGES } from '@/lib/validators';
@@ -466,6 +469,14 @@ export default function ContactDetailPage() {
     );
   }
 
+  // Uses the live form values so editing a mis-OCR'd name immediately corrects
+  // the search, rather than searching for whatever was saved.
+  const contactLinkedIn = linkedInTarget({
+    name: formData.name || contact.name,
+    company: formData.company || contact.company || '',
+    rawOcrText: contact.rawOcrText || '',
+  });
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 pb-36 md:pb-6 animate-fade-in-up">
       {/* Mobile sticky Save button — positioned above BottomNav including safe area */}
@@ -617,6 +628,21 @@ export default function ContactDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Same LinkedIn link as the confirm screen, for connecting after the show
+          rather than at the booth. Uses the saved OCR text, so a profile printed
+          on the card still resolves directly months later. */}
+      {contactLinkedIn && (
+        <a
+          href={contactLinkedIn.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mb-6 flex items-center justify-center gap-2 w-full px-4 py-3 bg-[#0A66C2] hover:bg-[#004182] text-white font-semibold rounded-xl min-h-[44px] transition-all duration-150 active:scale-[0.98]"
+        >
+          <Linkedin size={18} />
+          {contactLinkedIn.label}
+        </a>
+      )}
 
       {/* Sections */}
       <div className="space-y-4">

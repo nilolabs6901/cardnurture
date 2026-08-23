@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { missingLeadFields } from '@/lib/leadFields';
+import { linkedInTarget } from '@/lib/linkedin';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Loader2, Search } from 'lucide-react';
+import { ArrowLeft, Loader2, Search, Linkedin } from 'lucide-react';
 import PersonalityCard from '@/components/PersonalityCard';
 import ConfidenceField from '@/components/ConfidenceField';
 import { ACTIVE_SCAN_ID, loadScan, removeScan, saveScan } from '@/lib/scan-store';
@@ -350,6 +351,12 @@ export default function ConfirmPage() {
     return null;
   }
 
+  const linkedIn = linkedInTarget({
+    name: fields.name,
+    company: fields.company,
+    rawOcrText: rawText,
+  });
+
   const leadMissing = missingLeadFields({
     companyName: fields.company,
     contactName: fields.name,
@@ -412,6 +419,28 @@ export default function ConfirmPage() {
           </div>
         )}
       </div>
+
+      {/* Connect on LinkedIn while the person is still in front of you. Opens the
+          LinkedIn app on a phone rather than the browser, since iOS treats these
+          as universal links. target=_blank so the card being reviewed is not lost
+          to a navigation -- coming back to a wiped form mid-booth is the failure
+          this whole screen exists to avoid. */}
+      {linkedIn && (
+        <a
+          href={linkedIn.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 flex items-center justify-center gap-2 w-full px-4 py-3 bg-[#0A66C2] hover:bg-[#004182] text-white font-semibold rounded-xl min-h-[44px] transition-all duration-150 active:scale-[0.98]"
+        >
+          <Linkedin size={18} />
+          {linkedIn.label}
+        </a>
+      )}
+      {linkedIn?.kind === 'search' && (
+        <p className="mt-2 text-xs text-[var(--text-secondary)] text-center">
+          The card had no LinkedIn address, so this searches their name and company.
+        </p>
+      )}
 
       {/* Add to the lead tracker. A trade show yields a stack of cards and only
           some are leads worth chasing, so this is a deliberate act per card and
