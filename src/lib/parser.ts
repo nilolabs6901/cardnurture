@@ -14,8 +14,18 @@ const STATE_ABBREVS =
 
 const ZIP_REGEX = /\b\d{5}(?:-\d{4})?\b/;
 
+// Unambiguous street words. Safe to match case-insensitively.
 const STREET_PATTERNS =
-  /\b(?:St\.?|Street|Ave\.?|Avenue|Blvd\.?|Boulevard|Rd\.?|Road|Dr\.?|Drive|Ln\.?|Lane|Ct\.?|Court|Way|Pl\.?|Place|Cir\.?|Circle|Pkwy\.?|Parkway|Hwy\.?|Highway|Suite|Ste\.?|Floor|Fl\.?|Unit|#)\b/i;
+  /\b(?:St\.?|Street|Ave\.?|Avenue|Blvd\.?|Boulevard|Rd\.?|Road|Dr\.?|Drive|Ln\.?|Lane|Court|Way|Pl\.?|Place|Cir\.?|Circle|Pkwy\.?|Parkway|Hwy\.?|Highway|Suite|Ste\.?|Floor|Unit|#)\b/i;
+
+/**
+ * "Fl" (floor) and "Ct" (court) are spelled identically to the FL and CT state
+ * codes, so matching them case-insensitively made every Florida card look like it
+ * carried a street word -- which is exactly the territory Kenny works. Matching
+ * case-sensitively separates them cleanly: a street abbreviation is written "Fl."
+ * or "Oak Ct", a state code is written "FL".
+ */
+const AMBIGUOUS_STREET_ABBREV = /\b(?:Fl|Ct)\.?\b/;
 
 // Title/role keywords to help identify name vs title lines
 const TITLE_KEYWORDS =
@@ -33,12 +43,57 @@ function isCompanyLine(line: string): boolean {
   return COMPANY_SUFFIXES_REGEX.test(line);
 }
 
+/**
+ * Detects the character soup tesseract produces from logos, background art and
+ * card edges -- lines like "I EAE A SU Tv rN 28 fy 00s Sra 3 pa wl J, IN".
+ *
+ * Two tells, both cheap and both absent from real address lines:
+ *  - a pile of one and two character tokens, where genuine addresses have words
+ *  - lowercase running straight into uppercase inside a token ("rN", "fy"),
+ *    which happens when the engine guesses adjacent glyphs independently
+ *
+ * Short lines are exempt: "Orlando, FL 32801" is three tokens and two of them
+ * are short by design, so judging it on these ratios would reject real data.
+ */
+function looksLikeOcrNoise(line: string): boolean {
+  const tokens = line.split(/[\s,]+/).filter(Boolean);
+  if (tokens.length < 4) return false;
+
+  const alnum = (t: string) => t.replace(/[^A-Za-z0-9]/g, '');
+  const shortTokens = tokens.filter((t) => alnum(t).length <= 2).length;
+  if (shortTokens / tokens.length > 0.4) return true;
+
+  const internalCaps = tokens.filter((t) => /[a-z][A-Z]/.test(t)).length;
+  if (internalCaps >= 2) return true;
+
+  return false;
+}
+
+/**
+ * A line is an address only on corroborating evidence.
+ *
+ * This used to accept a bare state abbreviation, which is two capital letters --
+ * something OCR noise generates constantly. A junk line ending in "IN" was read
+ * as Indiana and shipped to the address field, and Kenny had to clear a long
+ * garbage string on a phone keyboard before he could type the real one.
+ * A state code now has to arrive with something that looks like a street.
+ */
 function isAddressLine(line: string): boolean {
-  return (
-    STATE_ABBREVS.test(line) ||
-    ZIP_REGEX.test(line) ||
-    STREET_PATTERNS.test(line)
-  );
+  if (looksLikeOcrNoise(line)) return false;
+
+  const hasZip = ZIP_REGEX.test(line);
+  const hasState = STATE_ABBREVS.test(line);
+  const hasStreetWord = STREET_PATTERNS.test(line) || AMBIGUOUS_STREET_ABBREV.test(line);
+  const hasBuildingNumber = /^\s*\d{1,6}\b/.test(line);
+
+  // A five digit postcode is the one signal strong enough to stand alone.
+  if (hasZip) return true;
+  // "8821 Commerce Way", "Suite 100" -- a street word carrying a number.
+  if (hasStreetWord && /\d/.test(line)) return true;
+  // A state code needs a companion before it counts for anything.
+  if (hasState && (hasStreetWord || hasBuildingNumber)) return true;
+
+  return false;
 }
 
 function isTitleLine(line: string): boolean {

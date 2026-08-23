@@ -79,3 +79,44 @@ describe('parseBusinessCard (confidence)', () => {
     expect(confidence.phone).toBe('low');
   });
 });
+
+/**
+ * Kenny's card at the Combilift show, 2026-08-23. Tesseract read the card's
+ * graphics as text and the junk line happened to end in "IN", which the old
+ * address rule accepted as Indiana. The garbage landed in the address field and
+ * had to be cleared by hand on a phone before the real address could be typed.
+ */
+const noisyText = `Kenny Gouts
+Regional Sales Manager Florida
+Toyota
+407-747-0932
+I EAE A SU Tv rN 28 fy 00s Sra 3 pa wl J, IN`;
+
+describe('OCR noise in the address field', () => {
+  it('rejects a junk line whose only address signal is a stray state code', () => {
+    const result = parseContactFields(noisyText);
+    expect(result.address).toBe('');
+  });
+
+  it('still keeps the fields OCR read correctly', () => {
+    const result = parseContactFields(noisyText);
+    expect(result.phone).toContain('407');
+    expect(result.name).toContain('Kenny');
+  });
+
+  it('accepts a city/state/zip line, which is short and legitimately terse', () => {
+    expect(parseContactFields('Orlando, FL 32801').address).toContain('Orlando');
+  });
+
+  it('accepts a street line with no zip or state', () => {
+    expect(parseContactFields('8821 Commerce Way').address).toContain('Commerce');
+  });
+
+  it('accepts a suite line', () => {
+    expect(parseContactFields('1234 Main Street, Suite 100').address).toContain('Suite');
+  });
+
+  it('rejects a state code with no street evidence at all', () => {
+    expect(parseContactFields('Sales and Service across FL and GA').address).toBe('');
+  });
+});
