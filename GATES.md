@@ -29,3 +29,23 @@ Scope: all requested items 2–7 are implemented, integrated, and verified witho
 
 - [x] G6: final release status is measured from the working tree
   EVIDENCE: Application commits and all integration gates are complete; the driver performs a post-commit `git status --porcelain` check and requires empty output.
+
+## Lead push to the deal-registration app (2026-08-23)
+
+Targets `/api/leads`, not `/api/deals`. The deals endpoint is the dealer
+registration system: all 136 of its records belong to dealer reps (Briggs, Ring
+Power, Kelly Tractor, SST) and Kenny appears on none of them. The leads endpoint
+is his own tracker -- 129 of its 158 records are his -- and its required fields
+are a business card exactly.
+
+- **CHECK:** `npx tsc --noEmit` → **EXPECT:** 0 errors
+- **CHECK:** `npm run build` → **EXPECT:** `/api/leads/push` listed as a route
+- **CHECK:** `grep -rl "DEAL_APP_URL\|web-production" .next/static/` → **EXPECT:** no matches; the tracker address must never ship to the phone
+- **CHECK:** POST a complete card to `/api/leads/push` → **EXPECT:** `{"status":"created"}` with a first follow-up date
+- **CHECK:** POST a card with an empty phone → **EXPECT:** `{"status":"incomplete"}` naming the missing field, and no lead created
+- **CHECK:** POST with the tracker stopped → **EXPECT:** `{"status":"unreachable"}`, and the contact still saves
+- **CHECK:** inspect the created record → **EXPECT:** `repName`/`repEmail` are Kenny's, and the card contact's address appears only in `contactEmail`
+- **HUMAN GATE:** on a phone, confirm the control and its cadence picker sit above the docked Save bar and a held notice is readable before pressing Continue
+
+All automated checks were run and passed on 2026-08-23 against a LOCAL tracker on
+:3199. Production (158 leads) was never written to; verified unchanged afterwards.

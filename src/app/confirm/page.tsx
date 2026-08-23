@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { missingLeadFields } from '@/lib/leadFields';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Loader2, Search } from 'lucide-react';
 import PersonalityCard from '@/components/PersonalityCard';
@@ -90,6 +91,23 @@ export default function ConfirmPage() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  // Off by default. Most cards at a show are not deals, and a registration that
+  // happened because a checkbox was already ticked is worse than one that did not
+  // happen at all: it emails the rep, starts a six month clock, and blocks the real
+  // registration later with a duplicate.
+  const [registerAsDeal, setRegisterAsDeal] = useState(false);
+  const [dealNotice, setDealNotice] = useState('');
+  const [dealAppReady, setDealAppReady] = useState(false);
+  // 3 days is Kenny's most-used cadence in the tracker (62 of 158 leads), with 2
+  // and 7 close behind. Defaulting to his own habit beats inventing a number.
+  const [followUpDays, setFollowUpDays] = useState(3);
+
+  useEffect(() => {
+    fetch('/api/leads/push')
+      .then((r) => r.json())
+      .then((d) => setDealAppReady(Boolean(d.configured)))
+      .catch(() => setDealAppReady(false));
+  }, []);
   const [mounted, setMounted] = useState(false);
   const savingRef = useRef(false);
 
@@ -225,6 +243,10 @@ export default function ConfirmPage() {
     setPersonalityType(type as PersonalityType);
   }
 
+  // Set once the contact row exists, so acknowledging a deal notice and pressing
+  // Save again advances to the draft instead of POSTing the same card twice.
+  const savedDraftRef = useRef<string | null>(null);
+
   async function handleSave() {
     if (!fields.name.trim()) {
       setSaveError('Name is required.');
@@ -234,6 +256,15 @@ export default function ConfirmPage() {
     setIsSaving(true);
     savingRef.current = true;
     setSaveError('');
+
+    // Already saved on a previous press; just finish the journey.
+    if (savedDraftRef.current) {
+      await removeScan();
+      setMounted(false);
+      savingRef.current = false;
+      router.push(`/drafts/${savedDraftRef.current}`);
+      return;
+    }
 
     try {
       const res = await fetch('/api/contacts', {
@@ -260,6 +291,45 @@ export default function ConfirmPage() {
       }
 
       const data = await res.json();
+      savedDraftRef.current = data.draftId;
+
+      // Only now, with the contact durably saved. The card is the irreplaceable
+      // thing here; a deal can always be registered later from the contact record.
+      //
+      // Anything other than a clean registration HOLDS the page. This screen
+      // redirects to the draft on success, so a notice set here would be unmounted
+      // before it painted -- meaning a failed registration would look identical to
+      // a successful one. At a trade show that silence is the whole cost: the deal
+      // Kenny believes is protected is not, and he finds out when a colleague
+      // registers it first.
+      if (registerAsDeal && fields.company.trim()) {
+        let notice = '';
+        try {
+          const dealRes = await fetch('/api/leads/push', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              companyName: fields.company.trim(),
+              contactName: fields.name.trim(),
+              contactPhone: fields.phone.trim(),
+              contactEmail: fields.email.trim(),
+              followUpIntervalDays: followUpDays,
+            }),
+          });
+          const deal = await dealRes.json();
+          if (deal.status !== 'created') notice = deal.message;
+        } catch {
+          notice = 'Contact saved, but the lead tracker could not be reached.';
+        }
+        if (notice) {
+          setDealNotice(notice);
+          setRegisterAsDeal(false); // so pressing Save again does not retry blindly
+          setIsSaving(false);
+          savingRef.current = false;
+          return; // contact is saved; the user acknowledges and presses Save to move on
+        }
+      }
+
       try {
         sessionStorage.removeItem('cardnurture_ocr_result');
       } catch {
@@ -280,6 +350,13 @@ export default function ConfirmPage() {
     return null;
   }
 
+  const leadMissing = missingLeadFields({
+    companyName: fields.company,
+    contactName: fields.name,
+    contactPhone: fields.phone,
+    contactEmail: fields.email,
+  });
+
   return (
     <div className="animate-fade-in-up max-w-lg mx-auto px-4 pt-4 pb-action-bar">
       {/* Back button */}
@@ -290,6 +367,12 @@ export default function ConfirmPage() {
         <ArrowLeft size={18} />
         Back
       </button>
+
+      {dealNotice && (
+        <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+          {dealNotice}
+        </div>
+      )}
 
       {/* Contact Form */}
       <div className="space-y-4">
@@ -330,6 +413,50 @@ export default function ConfirmPage() {
         )}
       </div>
 
+      {/* Add to the lead tracker. A trade show yields a stack of cards and only
+          some are leads worth chasing, so this is a deliberate act per card and
+          never a default. The tracker refuses a lead without all four fields, so
+          the control says which one is missing rather than failing on Save. */}
+      {dealAppReady && (
+        <div className="mt-4 bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-subtle)] p-4">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={registerAsDeal}
+              disabled={leadMissing.length > 0}
+              onChange={(e) => setRegisterAsDeal(e.target.checked)}
+              className="mt-0.5 w-5 h-5 shrink-0 rounded accent-[var(--accent-orange)] disabled:opacity-40"
+            />
+            <span>
+              <span className="block text-sm font-semibold text-[var(--text-primary)]">
+                Add to lead tracker
+              </span>
+              <span className="block text-xs text-[var(--text-secondary)] mt-0.5">
+                {leadMissing.length > 0
+                  ? `Needs a ${leadMissing.join(', ')} above first.`
+                  : 'Creates a follow-up reminder under your name in the deal app.'}
+              </span>
+            </span>
+          </label>
+
+          {registerAsDeal && leadMissing.length === 0 && (
+            <div className="mt-3 pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between gap-3">
+              <span className="text-xs text-[var(--text-secondary)]">Follow up every</span>
+              <select
+                value={followUpDays}
+                onChange={(e) => setFollowUpDays(Number(e.target.value))}
+                className="bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] min-h-[44px]"
+              >
+                <option value={2}>2 days</option>
+                <option value={3}>3 days</option>
+                <option value={7}>7 days</option>
+                <option value={14}>14 days</option>
+              </select>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Save error */}
       {saveError && (
         <p className="mt-4 text-sm text-[var(--status-error)] text-center">{saveError}</p>
@@ -349,7 +476,11 @@ export default function ConfirmPage() {
               Saving...
             </>
           ) : (
-            'Save Contact'
+            dealNotice
+              ? 'Continue'
+              : registerAsDeal && fields.company.trim()
+                ? 'Save & Register Deal'
+                : 'Save Contact'
           )}
         </button>
       </div>
