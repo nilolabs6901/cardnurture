@@ -34,3 +34,40 @@ describe('missingLeadFields', () => {
     expect(missingLeadFields({})).toEqual(['company', 'name', 'phone', 'email']);
   });
 });
+
+/**
+ * The follow-up interval is typed by hand now, so the rules the tracker enforces
+ * server-side (integer, at least 1 day) have to be enforced before the contact is
+ * written -- otherwise a bad number surfaces as a 400 after the save, which is
+ * exactly the "looks like it worked" failure this screen is built to avoid.
+ */
+describe('follow-up interval validation', () => {
+  const parse = (raw: string) => {
+    const n = Number.parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 1 && n <= 365;
+  };
+
+  it('accepts a typed number in range', () => {
+    expect(parse('10')).toBe(true);
+    expect(parse('1')).toBe(true);
+    expect(parse('365')).toBe(true);
+  });
+
+  it('rejects an empty box, which is what a half-retyped field looks like', () => {
+    expect(parse('')).toBe(false);
+    expect(parse('   ')).toBe(false);
+  });
+
+  it('rejects zero and negatives -- the tracker requires at least one day', () => {
+    expect(parse('0')).toBe(false);
+    expect(parse('-3')).toBe(false);
+  });
+
+  it('rejects a value beyond a year', () => {
+    expect(parse('366')).toBe(false);
+  });
+
+  it('rejects text', () => {
+    expect(parse('soon')).toBe(false);
+  });
+});

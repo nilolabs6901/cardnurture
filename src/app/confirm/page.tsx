@@ -99,9 +99,12 @@ export default function ConfirmPage() {
   const [registerAsDeal, setRegisterAsDeal] = useState(false);
   const [dealNotice, setDealNotice] = useState('');
   const [dealAppReady, setDealAppReady] = useState(false);
-  // 3 days is Kenny's most-used cadence in the tracker (62 of 158 leads), with 2
-  // and 7 close behind. Defaulting to his own habit beats inventing a number.
-  const [followUpDays, setFollowUpDays] = useState(3);
+  // Held as a string, not a number. A number-typed state forces a value at every
+  // keystroke, so clearing the box to type "10" snaps it back to 0 or NaN and the
+  // field fights you. The string holds "" while you retype and is validated on use.
+  //
+  // 3 is Kenny's most-used cadence in the tracker (62 of 158 leads).
+  const [followUpDaysInput, setFollowUpDaysInput] = useState('3');
 
   useEffect(() => {
     fetch('/api/leads/push')
@@ -244,11 +247,27 @@ export default function ConfirmPage() {
     setPersonalityType(type as PersonalityType);
   }
 
+  // The tracker requires an interval of at least 1 day and rejects anything else,
+  // so it is validated here rather than discovered as a 400 after the contact saved.
+  const followUpDays = Number.parseInt(followUpDaysInput, 10);
+  const followUpDaysValid = Number.isFinite(followUpDays) && followUpDays >= 1 && followUpDays <= 365;
+  const followUpDaysError =
+    followUpDaysInput.trim() === ''
+      ? 'Enter a number of days.'
+      : !followUpDaysValid
+        ? 'Must be between 1 and 365 days.'
+        : '';
+
   // Set once the contact row exists, so acknowledging a deal notice and pressing
   // Save again advances to the draft instead of POSTing the same card twice.
   const savedDraftRef = useRef<string | null>(null);
 
   async function handleSave() {
+    if (registerAsDeal && !followUpDaysValid) {
+      setSaveError(followUpDaysError);
+      return;
+    }
+
     if (!fields.name.trim()) {
       setSaveError('Name is required.');
       return;
@@ -303,7 +322,7 @@ export default function ConfirmPage() {
       // a successful one. At a trade show that silence is the whole cost: the deal
       // Kenny believes is protected is not, and he finds out when a colleague
       // registers it first.
-      if (registerAsDeal && fields.company.trim()) {
+      if (registerAsDeal && followUpDaysValid && fields.company.trim()) {
         let notice = '';
         try {
           const dealRes = await fetch('/api/leads/push', {
@@ -469,18 +488,49 @@ export default function ConfirmPage() {
           </label>
 
           {registerAsDeal && leadMissing.length === 0 && (
-            <div className="mt-3 pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between gap-3">
-              <span className="text-xs text-[var(--text-secondary)]">Follow up every</span>
-              <select
-                value={followUpDays}
-                onChange={(e) => setFollowUpDays(Number(e.target.value))}
-                className="bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] min-h-[44px]"
-              >
-                <option value={2}>2 days</option>
-                <option value={3}>3 days</option>
-                <option value={7}>7 days</option>
-                <option value={14}>14 days</option>
-              </select>
+            <div className="mt-3 pt-3 border-t border-[var(--border-subtle)]">
+              <div className="flex items-center justify-between gap-3">
+                <label htmlFor="followup-days" className="text-xs text-[var(--text-secondary)]">
+                  Follow up every
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="followup-days"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={365}
+                    value={followUpDaysInput}
+                    onChange={(e) => setFollowUpDaysInput(e.target.value)}
+                    className="w-20 text-center bg-[var(--bg-primary)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] min-h-[44px] focus:border-[var(--accent-orange)] focus:ring-1 focus:ring-[var(--accent-orange)] outline-none"
+                  />
+                  <span className="text-xs text-[var(--text-secondary)]">days</span>
+                </div>
+              </div>
+
+              {/* Kenny's four most-used cadences, kept as one-tap shortcuts. */}
+              <div className="flex gap-2 mt-2 justify-end">
+                {[2, 3, 7, 14].map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setFollowUpDaysInput(String(d))}
+                    className={`px-3 py-1.5 rounded-lg text-xs min-h-[36px] transition-all duration-150 active:scale-95 ${
+                      followUpDaysInput === String(d)
+                        ? 'bg-[var(--accent-orange)] text-white font-semibold'
+                        : 'bg-[var(--bg-primary)] border border-[var(--border-subtle)] text-[var(--text-secondary)]'
+                    }`}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+
+              {followUpDaysError && (
+                <p className="mt-2 text-xs text-[var(--status-error)] text-right">
+                  {followUpDaysError}
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -507,8 +557,8 @@ export default function ConfirmPage() {
           ) : (
             dealNotice
               ? 'Continue'
-              : registerAsDeal && fields.company.trim()
-                ? 'Save & Register Deal'
+              : registerAsDeal && leadMissing.length === 0
+                ? 'Save & Add Lead'
                 : 'Save Contact'
           )}
         </button>
