@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef } from 'react';
+import { openInOutlook, openInGmail, openInDefaultMail } from '@/lib/openInMail';
 import { RefreshCw, Copy, Mail, Archive, Check, ChevronDown } from 'lucide-react';
 import PersonalityBadge from './PersonalityBadge';
 
@@ -74,16 +75,17 @@ export default function DraftEditor({
   };
 
   const handleOpenOutlook = () => {
-    const to = contact?.email || '';
-    const mailtoUrl = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = mailtoUrl;
+    openInOutlook({ to: contact?.email || '', subject, body });
+    setShowMailMenu(false);
+  };
+
+  const handleOpenDefaultMail = () => {
+    openInDefaultMail({ to: contact?.email || '', subject, body });
     setShowMailMenu(false);
   };
 
   const handleOpenGmail = () => {
-    const to = contact?.email || '';
-    const gmailUrl = `https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(gmailUrl, '_blank');
+    openInGmail({ to: contact?.email || '', subject, body });
     setShowMailMenu(false);
   };
 
@@ -196,6 +198,13 @@ export default function DraftEditor({
                   >
                     <span className="text-base">✉️</span>
                     Gmail
+                  </button>
+                  <button
+                    onClick={handleOpenDefaultMail}
+                    className="flex items-center gap-3 w-full px-4 py-3 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors text-left min-h-[44px] border-t border-[var(--border-subtle)]"
+                  >
+                    <span className="text-base">📮</span>
+                    Default mail app
                   </button>
                 </div>
               </>

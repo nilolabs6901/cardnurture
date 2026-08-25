@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { openInOutlook, openInGmail, openInDefaultMail } from '@/lib/openInMail';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -145,16 +146,17 @@ export default function DraftEditorPage() {
 
   // Open in mail client
   const handleOpenOutlook = useCallback(() => {
-    const to = draft?.contact?.email || '';
-    const mailtoUrl = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = mailtoUrl;
+    openInOutlook({ to: draft?.contact?.email || '', subject, body });
+    setShowMailMenu(false);
+  }, [draft, subject, body]);
+
+  const handleOpenDefaultMail = useCallback(() => {
+    openInDefaultMail({ to: draft?.contact?.email || '', subject, body });
     setShowMailMenu(false);
   }, [draft, subject, body]);
 
   const handleOpenGmail = useCallback(() => {
-    const to = draft?.contact?.email || '';
-    const gmailUrl = `https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.open(gmailUrl, '_blank');
+    openInGmail({ to: draft?.contact?.email || '', subject, body });
     setShowMailMenu(false);
   }, [draft, subject, body]);
 
@@ -382,6 +384,13 @@ export default function DraftEditorPage() {
                   <span className="text-base">✉️</span>
                   Gmail
                 </button>
+                <button
+                  onClick={handleOpenDefaultMail}
+                  className="flex items-center gap-3 w-full px-4 py-3 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors text-left min-h-[44px] border-t border-[var(--border-subtle)]"
+                >
+                  <span className="text-base">📮</span>
+                  Default mail app
+                </button>
               </div>
             </>
           )}
@@ -462,6 +471,13 @@ export default function DraftEditorPage() {
                   >
                     <span className="text-base">✉️</span>
                     Gmail
+                  </button>
+                  <button
+                    onClick={handleOpenDefaultMail}
+                    className="flex items-center gap-3 w-full px-4 py-3 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-colors text-left min-h-[44px] border-t border-[var(--border-subtle)]"
+                  >
+                    <span className="text-base">📮</span>
+                    Default mail app
                   </button>
                 </div>
               </>
