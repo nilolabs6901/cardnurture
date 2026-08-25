@@ -22,12 +22,29 @@ describe('mail compose links', () => {
     expect(outlookUrl(msg)).toContain('to=monmac%40tisd.net');
   });
 
-  it('escapes newlines and non-ascii so the body arrives intact', () => {
+  /**
+   * The test that mattered, written wrong the first time.
+   *
+   * I originally built these with URLSearchParams, which form-encodes a space as
+   * `+`, and then asserted `toContain('Hi+Michael')` — enshrining the bug as the
+   * expectation. It shipped green and Kenny opened a draft reading
+   * "Hi+Rodrigo,+It+was+great+meeting+you". Mail clients percent-decode; they do
+   * not turn `+` back into a space.
+   *
+   * So this now asserts the opposite: spaces are %20, and no literal `+` ever
+   * appears between two words.
+   */
+  it('encodes spaces as %20, never as +', () => {
     for (const url of [mailtoUrl(msg), outlookUrl(msg), gmailUrl(msg)]) {
       expect(url).not.toContain('\n');
-      expect(url).toContain('Hi+Michael');
-      // The em dash in the subject must survive rather than truncating it.
-      expect(decodeURIComponent(url.replace(/\+/g, ' '))).toContain('—');
+      expect(url).toContain('Hi%20Michael');
+      expect(url).not.toContain('Hi+Michael');
+      // No `+` immediately followed by a letter anywhere in the URL.
+      expect(/\+[A-Za-z]/.test(url)).toBe(false);
+      // The em dash survives rather than truncating the subject.
+      expect(decodeURIComponent(url)).toContain('—');
+      // And a decoded body reads like prose, with real spaces and newlines.
+      expect(decodeURIComponent(url)).toContain('It was great meeting you.');
     }
   });
 

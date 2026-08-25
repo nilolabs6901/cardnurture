@@ -22,20 +22,35 @@ export interface Composed {
   body: string;
 }
 
-/** `mailto:` wants the address raw; only the query values get encoded. */
+/**
+ * Query values are escaped with encodeURIComponent, NOT URLSearchParams.
+ *
+ * URLSearchParams uses form encoding, where a space becomes `+`. That is correct
+ * for an HTML form post and wrong for these URLs: mail clients percent-decode the
+ * value and do not translate `+` back into a space, so the draft arrives reading
+ * "Hi+Michael,+It+was+great+meeting+you". Which is exactly what happened when I
+ * first wrote this, and the test I wrote alongside it asserted `Hi+Michael` as
+ * though that were the desired output — so the bug shipped with a green suite.
+ *
+ * encodeURIComponent produces %20 for a space, which every client decodes.
+ */
+function q(params: Record<string, string>): string {
+  return Object.entries(params)
+    .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+    .join("&");
+}
+
+/** `mailto:` wants the address raw in the path; only the query values get escaped. */
 export function mailtoUrl({ to, subject, body }: Composed): string {
-  const q = new URLSearchParams({ subject, body }).toString();
-  return `mailto:${to}?${q}`;
+  return `mailto:${to}?${q({ subject, body })}`;
 }
 
 export function outlookUrl({ to, subject, body }: Composed): string {
-  const q = new URLSearchParams({ to, subject, body }).toString();
-  return `ms-outlook://compose?${q}`;
+  return `ms-outlook://compose?${q({ to, subject, body })}`;
 }
 
 export function gmailUrl({ to, subject, body }: Composed): string {
-  const q = new URLSearchParams({ view: "cm", to, su: subject, body }).toString();
-  return `https://mail.google.com/mail/?${q}`;
+  return `https://mail.google.com/mail/?${q({ view: "cm", to, su: subject, body })}`;
 }
 
 /** Try Outlook by name; fall back to the system default if it is not installed. */
