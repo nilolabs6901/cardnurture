@@ -42,6 +42,13 @@ model Contact {
   industryVertical         String?
   supplyChainResearchedAt  DateTime?
 
+  // Where you met them and what you actually talked about. Typed at the booth
+  // while the conversation is still fresh -- it is the one thing no amount of
+  // research can supply, and inventing it is how you remind somebody of a chat
+  // that never happened.
+  metAt           String?
+  metNote         String?  @db.Text
+
   // Sales pipeline
   salesStage      String   @default("Lead")
 

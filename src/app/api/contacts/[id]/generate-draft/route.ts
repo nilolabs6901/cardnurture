@@ -7,6 +7,7 @@ import {
   generateFollowUpDraft,
 } from '@/lib/email-templates';
 import type { TemplateContact } from '@/lib/email-templates';
+import { writeDraft } from '@/lib/draft-writer';
 
 export async function POST(
   request: NextRequest,
@@ -53,9 +54,28 @@ export async function POST(
     let draftContent: { subject: string; body: string };
 
     switch (templateType) {
-      case 'intro-meeting':
-        draftContent = generateIntroMeetingDraft(templateContact);
+      case 'intro-meeting': {
+        // Try a written draft first. It fills the blanks the template cannot —
+        // where you met, what you discussed — from what was typed at the booth,
+        // and is told in no uncertain terms not to invent either.
+        //
+        // Falls back to the template when there is no model key, when the model
+        // errors, or when it returns something with a placeholder still in it.
+        // A slower path that degrades to the old behaviour beats a fast one that
+        // degrades to nothing.
+        const written = await writeDraft({
+          name: contact.name,
+          company: contact.company,
+          metAt: contact.metAt,
+          metNote: contact.metNote,
+          personalityType: contact.personalityType,
+          personalitySummary: contact.personalitySummary,
+          companyDescription: contact.companyDescription,
+          industryVertical: contact.industryVertical,
+        });
+        draftContent = written ?? generateIntroMeetingDraft(templateContact);
         break;
+      }
 
       case 'combilift-model':
         if (!combiliftModel) {

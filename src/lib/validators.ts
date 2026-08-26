@@ -30,6 +30,8 @@ export const contactCreateSchema = z.object({
   researchSnippets: optionalText,
   industryVertical: optionalText,
   rawOcrText: optionalText,
+  metAt: optionalText,
+  metNote: optionalText,
   needsReview: z.boolean().optional(),
   batchId: optionalText,
 });
@@ -52,6 +54,8 @@ export const contactUpdateSchema = z.object({
   researchSnippets: z.string().optional().or(z.literal('')),
   industryVertical: z.string().optional().or(z.literal('')),
   rawOcrText: z.string().optional().or(z.literal('')),
+  metAt: z.string().optional().or(z.literal('')),
+  metNote: z.string().optional().or(z.literal('')),
   needsReview: z.boolean().optional(),
   batchId: z.string().optional().or(z.literal('')),
   salesStage: z.enum(SALES_STAGES).optional(),

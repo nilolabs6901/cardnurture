@@ -61,6 +61,8 @@ export async function POST(request: NextRequest) {
         company: data.company || null,
         address: data.address || null,
         rawOcrText: data.rawOcrText || null,
+        metAt: data.metAt || null,
+        metNote: data.metNote || null,
         needsReview: data.needsReview ?? false,
         personalityType: data.personalityType || 'Balanced',
         personalitySummary: data.personalitySummary || null,

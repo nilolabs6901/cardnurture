@@ -106,6 +106,22 @@ export default function ConfirmPage() {
   // 3 is Kenny's most-used cadence in the tracker (62 of 158 leads).
   const [followUpDaysInput, setFollowUpDaysInput] = useState('3');
 
+  // Where you met and what you talked about. The two things no amount of
+  // research can supply, and the two the email needs most. metAt persists in the
+  // browser because every card at one show comes from the same place — you type
+  // it once on the first card of the day, not thirty times.
+  const [metAt, setMetAt] = useState('');
+  const [metNote, setMetNote] = useState('');
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('cardnurture_met_at');
+      if (saved) setMetAt(saved);
+    } catch {
+      // Private browsing or storage disabled; typing it each time still works.
+    }
+  }, []);
+
   useEffect(() => {
     fetch('/api/leads/push')
       .then((r) => r.json())
@@ -297,6 +313,8 @@ export default function ConfirmPage() {
           company: fields.company.trim(),
           address: fields.address.trim(),
           rawOcrText: rawText,
+        metAt: metAt.trim() || null,
+        metNote: metNote.trim() || null,
           personalityType,
           personalityConfidence,
           personalitySummary,
@@ -312,6 +330,13 @@ export default function ConfirmPage() {
 
       const data = await res.json();
       savedDraftRef.current = data.draftId;
+
+      // Remember the venue for the next card. The note is per-person and is not.
+      try {
+        if (metAt.trim()) localStorage.setItem('cardnurture_met_at', metAt.trim());
+      } catch {
+        // Not being able to remember it is a minor annoyance, not a failure.
+      }
 
       // Only now, with the contact durably saved. The card is the irreplaceable
       // thing here; a deal can always be registered later from the contact record.
@@ -437,6 +462,44 @@ export default function ConfirmPage() {
             </button>
           </div>
         )}
+      </div>
+
+      {/* The two facts research cannot supply. Typed while the conversation is
+          still fresh, because the alternative is an email that reminds somebody
+          of a chat that never happened. */}
+      <div className="mt-4 bg-[var(--bg-surface)] rounded-2xl border border-[var(--border-subtle)] p-4">
+        <h2 className="font-[var(--font-space-grotesk)] text-base font-bold text-[var(--text-primary)]">
+          For the follow-up email
+        </h2>
+        <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+          Both optional. Left blank, the email won&apos;t claim you met anywhere or
+          talked about anything.
+        </p>
+
+        <label className="block mt-3">
+          <span className="text-xs font-medium text-[var(--text-secondary)]">
+            Where you met — remembered for the next card
+          </span>
+          <input
+            value={metAt}
+            onChange={(e) => setMetAt(e.target.value)}
+            placeholder="the Combilift booth at MODEX"
+            className="mt-1 w-full bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl px-4 py-3 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--accent-orange)] focus:ring-1 focus:ring-[var(--accent-orange)] transition-all duration-200"
+          />
+        </label>
+
+        <label className="block mt-3">
+          <span className="text-xs font-medium text-[var(--text-secondary)]">
+            What you talked about
+          </span>
+          <textarea
+            value={metNote}
+            onChange={(e) => setMetNote(e.target.value)}
+            rows={2}
+            placeholder="running six branches, struggling to get quotes back same day"
+            className="mt-1 w-full bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl px-4 py-3 text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--accent-orange)] focus:ring-1 focus:ring-[var(--accent-orange)] transition-all duration-200 resize-none"
+          />
+        </label>
       </div>
 
       {/* Connect on LinkedIn while the person is still in front of you. Opens the
