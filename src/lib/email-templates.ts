@@ -236,10 +236,11 @@ export function generateIntroMeetingDraft(contact: TemplateContact): EmailDraft 
       ``,
       `[Optional call to action — e.g., "Would you be open to grabbing coffee sometime?" or "Let's find 15 minutes to chat next week."]`,
       ``,
+      // The sign-off stays; the name, title and phone do not. Outlook appends the
+      // real signature, so those three lines were placeholders to delete on a
+      // phone before the mail could go — and exactly the kind of thing that
+      // reaches a prospect as "[Your Name]" when somebody is in a hurry.
       tone.signoff,
-      `[Your Name]`,
-      `[Your Title]`,
-      `[Your Phone]`,
     ].join('\n'),
   };
 }
@@ -322,10 +323,11 @@ export function generateCombiliftModelDraft(
       ``,
       tone.cta,
       ``,
+      // The sign-off stays; the name, title and phone do not. Outlook appends the
+      // real signature, so those three lines were placeholders to delete on a
+      // phone before the mail could go — and exactly the kind of thing that
+      // reaches a prospect as "[Your Name]" when somebody is in a hurry.
       tone.signoff,
-      `[Your Name]`,
-      `[Your Title]`,
-      `[Your Phone]`,
     ].join('\n'),
   };
 }
