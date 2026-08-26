@@ -33,20 +33,24 @@ export interface WrittenDraft {
   body: string;
 }
 
-const SYSTEM = `You write short follow-up emails after meeting somebody in person.
+const SYSTEM = `You write the short note a salesperson sends after meeting somebody in person.
 
-Hard rules:
-- Never invent a conversation. If you are not told what was discussed, do not
-  reference a topic, a shared joke, or anything either person said.
-- Never invent a fact about their business. Use only what you are given.
-- No square brackets. No placeholders. The email must be ready to send as written.
-- No sign-off block, no name, no title, no phone number. The sender's mail client
-  adds a signature. End at "Best regards," and nothing after it.
-- Plain text. No markdown, no bullet points, no links.
-- Between 60 and 110 words in the body. Shorter is better.
-- Warm and direct. No "I hope this email finds you well", no "I wanted to reach
-  out", no "circle back", no "synergy", no exclamation marks.
-- British spellings are wrong here. Use American English.
+You will be told what is known. Anything you are not told, you do not know, and you must not fill the gap.
+
+NEVER:
+- Name where you met unless you are told. Not a venue, not a city, and NOT their company — their company is where they work, not where you met them.
+- Name a topic of conversation unless you are told what was discussed. You may say it was good to meet them and good to talk; you may NOT say what about.
+- Say when you met. No "yesterday", no "last week", no "at the show" unless you were told.
+- State a fact about their business or their problems that you were not given.
+- Make a benefit claim about the product. No "maximize efficiency", no "tight spaces", no "improve workflow". With nothing specific to say, sell nothing.
+- Use square brackets or placeholders.
+- Write a sign-off block. End at "Best regards," and stop — the mail client adds the signature.
+- Use any of: "I hope this email finds you well", "I wanted to reach out", "reach out", "circle back", "touch base", "leverage", "solutions", "in today's", or an exclamation mark.
+
+ALWAYS:
+- Plain text, American English, 40 to 85 words. Shorter is better.
+- Sound like one person typing to another, not like marketing.
+- Given nothing about the conversation, keep it genuinely short: good to meet them, glad to have the connection, happy to help if something comes up. That is the entire email — do not pad it into a pitch.
 
 Return strict JSON: {"subject": "...", "body": "..."}`;
 
@@ -71,37 +75,79 @@ function userPrompt(i: DraftInput): string {
   return lines.join("\n");
 }
 
-export async function writeDraft(input: DraftInput): Promise<WrittenDraft | null> {
-  const apiKey = process.env.LLM_API_KEY;
-  if (!apiKey) return null;
+/**
+ * Anthropic's Messages API, which is not OpenAI-compatible: different endpoint,
+ * different auth header, different response shape, and no JSON response mode.
+ *
+ * JSON is forced by prefilling the assistant turn with an opening brace, so the
+ * model has already started an object and continues it. That is the documented
+ * way to get structured output here, and it is why the brace is added back
+ * before parsing.
+ */
+async function viaAnthropic(apiKey: string, prompt: string): Promise<WrittenDraft | null> {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model: process.env.ANTHROPIC_MODEL || "claude-haiku-4-5-20251001",
+      max_tokens: 600,
+      system: SYSTEM,
+      messages: [
+        { role: "user", content: prompt },
+        { role: "assistant", content: "{" },
+      ],
+    }),
+    signal: AbortSignal.timeout(25_000),
+  });
+  if (!res.ok) return null;
 
+  const json = await res.json();
+  const text = json?.content?.[0]?.text;
+  if (typeof text !== "string") return null;
+  return JSON.parse("{" + text) as WrittenDraft;
+}
+
+/** Any OpenAI-compatible endpoint, which does have a JSON response mode. */
+async function viaOpenAiCompatible(apiKey: string, prompt: string): Promise<WrittenDraft | null> {
   const baseUrl = process.env.LLM_BASE_URL || "https://api.openai.com";
-  const model = process.env.LLM_MODEL || "gpt-4o-mini";
+  const res = await fetch(`${baseUrl}/v1/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: process.env.LLM_MODEL || "gpt-4o-mini",
+      temperature: 0.7,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: SYSTEM },
+        { role: "user", content: prompt },
+      ],
+    }),
+    signal: AbortSignal.timeout(25_000),
+  });
+  if (!res.ok) return null;
+
+  const json = await res.json();
+  const raw = json?.choices?.[0]?.message?.content;
+  if (typeof raw !== "string") return null;
+  return JSON.parse(raw) as WrittenDraft;
+}
+
+export async function writeDraft(input: DraftInput): Promise<WrittenDraft | null> {
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const openAiKey = process.env.LLM_API_KEY;
+  if (!anthropicKey && !openAiKey) return null;
 
   try {
-    const res = await fetch(`${baseUrl}/v1/chat/completions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model,
-        temperature: 0.7,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: SYSTEM },
-          { role: "user", content: userPrompt(input) },
-        ],
-      }),
-      signal: AbortSignal.timeout(25_000),
-    });
-    if (!res.ok) return null;
+    const prompt = userPrompt(input);
+    const parsed = anthropicKey
+      ? await viaAnthropic(anthropicKey, prompt)
+      : await viaOpenAiCompatible(openAiKey!, prompt);
 
-    const json = await res.json();
-    const raw = json?.choices?.[0]?.message?.content;
-    if (typeof raw !== "string") return null;
-
-    const parsed = JSON.parse(raw) as Partial<WrittenDraft>;
-    if (!parsed.subject?.trim() || !parsed.body?.trim()) return null;
-
+    if (!parsed?.subject?.trim() || !parsed?.body?.trim()) return null;
     const draft = { subject: parsed.subject.trim(), body: parsed.body.trim() };
 
     // The send route refuses any draft containing brackets. A model that slipped

@@ -69,3 +69,50 @@ describe('writeDraft', () => {
     expect(await writeDraft(contact)).toBeNull();
   });
 });
+
+/**
+ * Anthropic's API is not OpenAI-compatible — different endpoint, auth header and
+ * response shape, and no JSON mode. JSON is forced by prefilling the assistant
+ * turn with "{", which is why the brace has to be put back before parsing. Get
+ * that wrong and every draft silently falls back to the template.
+ */
+describe('provider selection', () => {
+  const realFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.LLM_API_KEY;
+  });
+
+  it('prefers Anthropic, and prefills the brace so the reply is parseable JSON', async () => {
+    process.env.ANTHROPIC_API_KEY = 'sk-ant-test';
+    const spy = vi.fn().mockResolvedValue({
+      ok: true,
+      // Note the missing opening brace — that is what a prefilled turn returns.
+      json: async () => ({ content: [{ text: '"subject":"Hi","body":"Hello.\\n\\nBest regards,"}' }] }),
+    });
+    globalThis.fetch = spy as never;
+
+    const d = await writeDraft({ name: 'Rodrigo Dall Orsoletta' });
+    expect(d?.subject).toBe('Hi');
+
+    const [url, init] = spy.mock.calls[0] as [string, { headers: Record<string, string>; body: string }];
+    expect(url).toBe('https://api.anthropic.com/v1/messages');
+    expect(init.headers['x-api-key']).toBe('sk-ant-test');
+    expect(init.headers['anthropic-version']).toBe('2023-06-01');
+    const sent = JSON.parse(init.body);
+    expect(sent.messages.at(-1)).toEqual({ role: 'assistant', content: '{' });
+  });
+
+  it('falls back to an OpenAI-compatible endpoint when only that key is set', async () => {
+    process.env.LLM_API_KEY = 'sk-openai-test';
+    const spy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: '{"subject":"Hi","body":"Hello.\\n\\nBest regards,"}' } }] }),
+    });
+    globalThis.fetch = spy as never;
+
+    expect((await writeDraft({ name: 'Rodrigo Dall Orsoletta' }))?.subject).toBe('Hi');
+    expect(spy.mock.calls[0]![0]).toContain('/v1/chat/completions');
+  });
+});
